@@ -38,7 +38,7 @@ library(magrittr)
 library(leaflet)
 
 # Read in the data needed to redetermine the EFAs
-efashp <- st_read("results/Equity_Focus_Areas/EquityFocusAreas.shp") 
+efashp <- st_read("outputs/results/Equity_Focus_Areas/EquityFocusAreas.shp") 
 wfrcboundary <- st_read("data/WFRCBoundary2018/WFRCBoundary2018.shp") %>% summarize(geometry = st_union(geometry)) %>%
   st_transform(4326)
 utahblocksshp <- st_read("data/Utah_Census_Block_Groups_2020/CensusBlockGroups2020.shp") %>% 
@@ -137,14 +137,14 @@ efatestd %>%
 
 
 #Create New EFA Shapefiles for Original Analysis -------------------------------------------------------------------------------------------------------------------------------------------------------------#
-#' create two shapefiles of the 2020 EFAs (one table for each threshold method)
-#' also filter out all efa regions that have a low population density
+#' create a geopackage of the original efa analysis. 
 efaPerc2020shp <- efa2020shp %>% filter(HighestPerc25wCar > 0) %>% 
   delete_low_pop_dens()
 efaSD2020shp <- efa2020shp %>% filter(HighestStDev > 0) %>% 
   delete_low_pop_dens()
-st_write(efaPerc2020shp, "results/Equity_Focus_Areas/EquityFocusAreasPerc2020.shp", driver="ESRI Shapefile") 
-st_write(efaSD2020shp, "results/Equity_Focus_Areas/EquityFocusAreasSD2020.shp", driver="ESRI Shapefile") 
+
+st_write(efaPerc2020shp, dsn = "outputs/results/Equity_Focus_Areas.gpkg",layer = "EquityFocusAreasPerc2020",append=TRUE)
+st_write(efaSD2020shp, dsn = "outputs/results/Equity_Focus_Areas.gpkg", layer = "EquityFocusAreasSD2020",append=TRUE) 
 
 
 #Create New EFA Shapefiles for Secondary Analysis-------------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -162,8 +162,8 @@ efaPerc2020Pov20Carshp <- efa2020shp %>% filter(HighestPerc20wCar > 0) %>%
 
 # View in Maps-------------------------------------------------------------------------------------------------------------------------------------------------------------#
 leaflet() %>%
-  addPolygons(data = efaPerc2020shpADJ$SHAPE, fillColor = "red",fillOpacity = 1, color = "red") %>%
-  addPolygons(data = efaPerc2020shp$SHAPE, fillColor = "black",fillOpacity = 1, color = "black") %>%
+  addPolygons(data = efaPerc2020Pov20NoCarshp$SHAPE, fillColor = "red",fillOpacity = 1, color = "red") %>%
+  addPolygons(data = efaPerc2020Pov25NoCarshp$SHAPE, fillColor = "black",fillOpacity = 1, color = "black") %>%
   addProviderTiles(providers$Esri.WorldStreetMap)
 
 
