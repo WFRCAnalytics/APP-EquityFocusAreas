@@ -38,7 +38,7 @@ library(magrittr)
 library(leaflet)
 
 # Read in the data needed to redetermine the EFAs
-efashp <- st_read("outputs/results/Equity_Focus_Areas/EquityFocusAreas.shp") 
+efashp <- st_read("outputs/results/Equity_Focus_Areas/EquityFocusAreas.shp") # UPDATE TO 2017 VALUES (its 2020 right now for some reason)
 wfrcboundary <- st_read("data/WFRCBoundary2018/WFRCBoundary2018.shp") %>% summarize(geometry = st_union(geometry)) %>%
   st_transform(4326)
 utahblocksshp <- st_read("data/Utah_Census_Block_Groups_2020/CensusBlockGroups2020.shp") %>% 
@@ -136,19 +136,18 @@ efatestd %>%
   kable_classic(full_width = F, html_font = "Cambria")
 
 
-#Create New EFA Shapefiles for Original Analysis -------------------------------------------------------------------------------------------------------------------------------------------------------------#
-#' create a geopackage of the original efa analysis. 
+#Create EFA GeoPackage for Original Analysis -------------------------------------------------------------------------------------------------------------------------------------------------------------#
 efaPerc2020shp <- efa2020shp %>% filter(HighestPerc25wCar > 0) %>% 
   delete_low_pop_dens()
 efaSD2020shp <- efa2020shp %>% filter(HighestStDev > 0) %>% 
   delete_low_pop_dens()
 
-st_write(efaPerc2020shp, dsn = "outputs/results/Equity_Focus_Areas.gpkg",layer = "EquityFocusAreasPerc2020",append=TRUE)
-st_write(efaSD2020shp, dsn = "outputs/results/Equity_Focus_Areas.gpkg", layer = "EquityFocusAreasSD2020",append=TRUE) 
+st_write(efaPerc2020shp, dsn = "outputs/results/EFAs_2020.gpkg",layer = "EquityFocusAreasPerc2020",append=TRUE)
+st_write(efaSD2020shp, dsn = "outputs/results/EFAs_2020.gpkg", layer = "EquityFocusAreasSD2020", append=TRUE) 
 
 
-#Create New EFA Shapefiles for Secondary Analysis-------------------------------------------------------------------------------------------------------------------------------------------------------------#
-#' create another shapefile where we adjust slightly the percentage calculation by using a poverty threshold of 20% instead of 25%
+#Create EFA GeoPackage for Secondary Analysis-------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#' create more spatial options where we adjust slightly the percentage calculation by using a poverty threshold of 20% instead of 25%
 efaPerc2020Pov25NoCarshp <- efa2020shp %>% filter(HighestPerc25woCar > 0) %>% 
   delete_low_pop_dens()
 
@@ -158,6 +157,9 @@ efaPerc2020Pov20NoCarshp<- efa2020shp %>% filter(HighestPerc20woCar > 0) %>%
 efaPerc2020Pov20Carshp <- efa2020shp %>% filter(HighestPerc20wCar > 0) %>%
   delete_low_pop_dens()
 
+st_write(efaPerc2020Pov25NoCarshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov25NoCar",append=TRUE)
+st_write(efaPerc2020Pov20NoCarshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov20NoCar",append=TRUE)
+st_write(efaPerc2020Pov20Carshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov20Car",append=TRUE)
 
 
 # View in Maps-------------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -165,8 +167,6 @@ leaflet() %>%
   addPolygons(data = efaPerc2020Pov20NoCarshp$SHAPE, fillColor = "red",fillOpacity = 1, color = "red") %>%
   addPolygons(data = efaPerc2020Pov25NoCarshp$SHAPE, fillColor = "black",fillOpacity = 1, color = "black") %>%
   addProviderTiles(providers$Esri.WorldStreetMap)
-
-
 
 
 #functions -------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
