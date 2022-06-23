@@ -1,0 +1,24 @@
+---
+title: "efa_analysis"
+output: html_document
+date: '2022-06-21'
+---
+
+```{r, include = FALSE}
+library(tidyverse)
+library(sf)
+library(knitr)
+library(kableExtra)
+library(magrittr)
+library(leaflet)
+library(shiny)
+library(shinydashboard)
+library(rsconnect)
+source("R/efamap/efa_analysis_2020.R")
+```
+
+```{r, width = 40, height = 30}
+runApp("R/efamap")
+rsconnect::deployApp("R/efamap")
+```
+
