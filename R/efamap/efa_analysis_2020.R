@@ -38,7 +38,7 @@ library(magrittr)
 library(leaflet)
 
 # Read in the data needed to redetermine the EFAs
-efashp <- st_read("outputs/results/Equity_Focus_Areas/EquityFocusAreas.shp") # UPDATE TO 2017 VALUES (its 2020 right now for some reason)
+efashp2017 <- st_read("data/Equity_Focus_Areas/EquityFocusAreas.shp") %>%  st_transform(4326)
 wfrcboundary <- st_read("data/WFRCBoundary2018/WFRCBoundary2018.shp") %>% summarize(geometry = st_union(geometry)) %>%
   st_transform(4326)
 utahblocksshp <- st_read("data/Utah_Census_Block_Groups_2020/CensusBlockGroups2020.shp") %>% 
@@ -48,6 +48,14 @@ minority <- read_csv("data/ACSDT5Y2020.B03002/ACSDT5Y2020.B03002_data_with_overl
 vehicles <- read_csv("data/ACSDT5Y2020.B25044/ACSDT5Y2020.B25044_data_with_overlays_2022-06-07T123124.csv")
 income <- read_csv("data/ACSDT5Y2020.C17002/ACSDT5Y2020.C17002_data_with_overlays_2022-06-07T123423.csv")
 
+#functions -------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+delete_low_pop_dens <- function(table){
+  table %>% 
+    mutate(Area_Meters = as.numeric(st_area(SHAPE))) %>%
+    mutate(Area_Miles = Area_Meters / 2589988.11) %>%
+    mutate(PopDens = Population / Area_Miles) %>%
+    filter(PopDens > 2000)
+}
 
 # Basic Table Analysis -------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #' manipulate all three tables used to determine EFAs. For each table, calculate the percentage
@@ -82,7 +90,7 @@ efa2020 <- left_join(MinorityTable2020,VehicleTable2020,by= c("NAME","GEO_ID")) 
   mutate(HighestPerc25wCar = pmax(Perc_Pov25,Perc_ZeroCar,Perc_Minorit),
          HighestPerc20wCar = pmax(Perc_Pov20,Perc_ZeroCar,Perc_Minorit),
          HighestPerc25woCar = pmax(Perc_Pov25,Perc_Minorit),
-         HighestPerc20woCar = pmax(Perc_Pov20,Perc_Minorit),) %>%
+         HighestPerc20woCar = pmax(Perc_Pov20,Perc_Minorit)) %>%
   mutate(GEOID20 = substring(GEO_ID,10))
 
 
@@ -142,38 +150,45 @@ efaPerc2020shp <- efa2020shp %>% filter(HighestPerc25wCar > 0) %>%
 efaSD2020shp <- efa2020shp %>% filter(HighestStDev > 0) %>% 
   delete_low_pop_dens()
 
-st_write(efaPerc2020shp, dsn = "outputs/results/EFAs_2020.gpkg",layer = "EquityFocusAreasPerc2020",append=TRUE)
-st_write(efaSD2020shp, dsn = "outputs/results/EFAs_2020.gpkg", layer = "EquityFocusAreasSD2020", append=TRUE) 
+#st_write(efaPerc2020shp, dsn = "outputs/results/EFAs_2020.gpkg",layer = "EquityFocusAreasPerc2020",append=TRUE)
+#st_write(efaSD2020shp, dsn = "outputs/results/EFAs_2020.gpkg", layer = "EquityFocusAreasSD2020", append=TRUE) 
 
 
 #Create EFA GeoPackage for Secondary Analysis-------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #' create more spatial options where we adjust slightly the percentage calculation by using a poverty threshold of 20% instead of 25%
 efaPerc2020Pov25NoCarshp <- efa2020shp %>% filter(HighestPerc25woCar > 0) %>% 
-  delete_low_pop_dens()
+  delete_low_pop_dens() %>% mutate(group = "2020 Pov-25% Min-40%",color = "blue") 
 
 efaPerc2020Pov20NoCarshp<- efa2020shp %>% filter(HighestPerc20woCar > 0) %>% 
-  delete_low_pop_dens()
+  delete_low_pop_dens() %>% mutate(group = "2020 Pov-20% Min-40%",color = "red")
 
 efaPerc2020Pov20Carshp <- efa2020shp %>% filter(HighestPerc20wCar > 0) %>%
-  delete_low_pop_dens()
+  delete_low_pop_dens() %>% mutate(group = "2020 Pov-20% Min 40% Veh-10%",color = "yellow")
 
-st_write(efaPerc2020Pov25NoCarshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov25NoCar",append=TRUE)
-st_write(efaPerc2020Pov20NoCarshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov20NoCar",append=TRUE)
-st_write(efaPerc2020Pov20Carshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov20Car",append=TRUE)
+efaPerc2017shp <- efashp2017 %>%  mutate(Perc_Pov25 = ifelse(PercPovert > 0.25,1,0), Perc_Pov20 = ifelse(PercPovert > 0.2,1,0)) %>%
+  mutate(SD_Pov = as.numeric(SD_Pov),SD_Minorit = as.numeric(SD_Minorit),SD_ZeroCar = as.numeric(SD_ZeroCar),HighestStD = as.numeric(HighestStD)) %>%
+  mutate(HighestPerc25woCar = pmax(Perc_Pov25,SD_Minorit), HighestPerc20woCar = pmax(Perc_Pov20,SD_Minorit),SHAPE = geometry)
+efaPerc2017Pov25NoCarshp <- efaPerc2017shp %>% filter(HighestPerc25woCar > 0) %>% mutate(group = "2017 Pov-25% Min-40%",color = "green")
+efaPerc2017Pov20NoCarshp<- efaPerc2017shp %>% filter(HighestPerc20woCar > 0) %>% mutate(group = "2017 Pov-20% Min-40%",color = "purple")
+
+efaAnalysis <- bind_rows(list(efaPerc2020Pov25NoCarshp,efaPerc2020Pov20NoCarshp,efaPerc2020Pov20Carshp,efaPerc2017Pov25NoCarshp,efaPerc2017Pov20NoCarshp)) %>%
+  mutate(group = as.factor(group))
+
+# TODO: Would geojson be better than geopackage? Look into this.
+#st_write(efaPerc2020Pov25NoCarshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov25NoCar",append=TRUE)
+#st_write(efaPerc2020Pov20NoCarshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov20NoCar",append=TRUE)
+#st_write(efaPerc2020Pov20Carshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov20Car",append=TRUE)
+#st_write(efaPerc2017Pov25NoCarshp, dsn = "outputs/results/EFAs_2017_2.gpkg", layer = "EFA2017Pov25NoCar",append=TRUE)
+#st_write(efaPerc2017Pov20NoCarshp, dsn = "outputs/results/EFAs_2017_2.gpkg", layer = "EFA2017Pov20NoCar",append=TRUE)
 
 
 # View in Maps-------------------------------------------------------------------------------------------------------------------------------------------------------------#
-leaflet() %>%
-  addPolygons(data = efaPerc2020Pov20NoCarshp$SHAPE, fillColor = "red",fillOpacity = 1, color = "red") %>%
-  addPolygons(data = efaPerc2020Pov25NoCarshp$SHAPE, fillColor = "black",fillOpacity = 1, color = "black") %>%
-  addProviderTiles(providers$Esri.WorldStreetMap)
-
-
-#functions -------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-delete_low_pop_dens <- function(table){
-  table %>% 
-    mutate(Area_Meters = as.numeric(st_area(SHAPE))) %>%
-    mutate(Area_Miles = Area_Meters / 2589988.11) %>%
-    mutate(PopDens = Population / Area_Miles) %>%
-    filter(PopDens > 2000)
+plot_comparison_map <- function(){
+  leaflet(efaAnalysis) %>%
+  addPolygons(data = efaAnalysis$SHAPE, fillOpacity = .5, fillColor = efaAnalysis$color, color = efaAnalysis$color, group = efaAnalysis$group, weight = .8) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%  # providers$Esri.WorldStreetMap
+  addLayersControl(
+    overlayGroups = efaAnalysis$group,
+    options = layersControlOptions(collapsed=FALSE)
+  )
 }
