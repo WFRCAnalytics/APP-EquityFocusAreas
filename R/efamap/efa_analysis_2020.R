@@ -6,20 +6,16 @@
 #'
 #'@param efashp A shapefile containing the previous EFAs, I beleive form 2017 data
 #'@param wfrcboundary A shapefile containing the region of the WFRC/MAG model
-#'@param utahblockshp A shapefile containing the 2020 Utah Block group geographies
+#'@param wfrc_blockgroups A spatial object containing the 2020 Utah Block group geographies
 #'@param minority Table B03002 from ACS data, organized by block groups in the region
 #'@param vehicles Table B25044 from ACS data, organized by block groups in the region
 #'@param income Table C17002 from ACS data, organized by block groups in region
 #'@param groupQuarter Table P5 from ACS data, organized by block groups in region
 #'
 #' Old EFAs: https://data.wfrc.org/datasets/equity-focus-areas/explore?location=40.772488%2C-111.854934%2C9.71&showTable=true
-#' Utah Block Groups 2020: https://opendata.gis.utah.gov/datasets/utah-census-block-groups-2020/explore?location=39.472883%2C-111.547240%2C-1.00
-#' Minority Table: https://data.census.gov/cedsci/table?q=B03002&g=0500000US49003%241500000,49011%241500000,49035%241500000,49049%241500000,49057%241500000&y=2020
-#' Vehicle Table: https://data.census.gov/cedsci/table?q=B25044&g=0500000US49003%241500000,49011%241500000,49035%241500000,49049%241500000,49057%241500000&y=2020
-#' Income Table: https://data.census.gov/cedsci/table?q=C17002&g=0500000US49003%241500000,49011%241500000,49035%241500000,49049%241500000,49057%241500000&y=2020
 #' Group Quarter Table: https://data.census.gov/cedsci/table?q=Group%20Quarter&g=0500000US49003%241500000,49011%241500000,49035%241500000,49049%241500000,49057%241500000&y=2020&tid=DECENNIALPL2020.P5
 #'
-#'@return Two new shapefiles containing the updated EFAs calculated from 2020 data. 
+#'@return Geopackages containing the updated EFAs calculated from 2020 data. 
 #'One shapefile is created using standard devations from the mean and the other is 
 #'created from default threseholds
 #'
@@ -61,15 +57,16 @@ get_acs_wfrc <- function(geo,vars,state,counties,year){
 }
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-
 # Read in the data needed to redetermine the EFAs
 wfrc_counties <- c("Utah","Davis","Salt Lake","Weber","Box Elder")
+
+#' TODO: Can shapefiles be read directly from internet? (efashp2017, health and schools, and maybe wfrc boundary)
+#' Also, how can I read in the block group data without downloading it?
 
 efashp2017 <- st_read("data/Equity_Focus_Areas/EquityFocusAreas.shp") %>%  st_transform(4326)
 wfrcboundary <- st_read("data/WFRCBoundary2018/WFRCBoundary2018.shp") %>% summarize(geometry = st_union(geometry)) %>%
   st_transform(4326)
-utahblocksshp <- st_read("data/Utah_Census_Block_Groups_2020/CensusBlockGroups2020.shp") %>% 
-  select(GEOID20,SHAPE_Leng,SHAPE_Area) %>%
+wfrc_blockgroups <- block_groups("UT",county = wfrc_counties,cb=TRUE) %>%
   st_transform(4326)
 
 minVars <- paste0("B03002_00", c(1,3))
@@ -85,11 +82,9 @@ income <- get_acs_wfrc("block group",incVars,"UT",wfrc_counties,2020) %>% select
   pivot_wider(names_from = variable,values_from = c(estimate))
 
 groupQuarter <- read_csv("data/DECENNIALPL2020.P5/DECENNIALPL2020.P5_data_with_overlays_2022-06-23T135404.csv")
-
 #groupVars <- c(paste0("P5_00",c(2:9)),"P5_010")
 #groupQuarter <- get_acs_wfrc("block group",groupVars,"UT",2020) %>% select(-moe) %>%
 #  pivot_wider(names_from = variable,values_from = c(estimate))
-
 
 # Basic Table Analysis -------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #' manipulate all three tables used to determine EFAs. For each table, calculate the percentage
@@ -114,6 +109,8 @@ PovertyTable2020 <- income %>%
   select(NAME,GEOID,Poverty,PercPovert) %>%
   mutate(Perc_Pov25 = ifelse(PercPovert > 0.25,1,0),
          Perc_Pov20 = ifelse(PercPovert > 0.2,1,0))
+
+# Extra data to display on the final map
 GroupQuarter2020 <- groupQuarter [-1,] %>%
   rename("IP" = P5_002N, "IP_Correctional" = P5_003N,"IP_Juvenile" = P5_004N, "IP_Nursing" = P5_005N, "IP_Other" = P5_006N,
          "NIP" = P5_007N, "NIP_College"=P5_008N,"NIP_Military"=P5_009N,"NIP_Other"=P5_010N) %>%
@@ -121,15 +118,14 @@ GroupQuarter2020 <- groupQuarter [-1,] %>%
          NIP = as.numeric(NIP),NIP_College=as.numeric(NIP_College),NIP_Military=as.numeric(NIP_Military),NIP_Other=as.numeric(NIP_Other),
          GEOID = substring(GEO_ID,10)) %>% select(-GEO_ID)
 
-#' join together all three tables
+#' join together all four tables
 efa2020 <- left_join(MinorityTable2020,VehicleTable2020,by= c("NAME","GEOID")) %>%
   left_join(PovertyTable2020,by=c("NAME","GEOID")) %>%
   left_join(GroupQuarter2020, by = c("NAME","GEOID")) %>%
   mutate(HighestPerc25wCar = pmax(Perc_Pov25,Perc_ZeroCar,Perc_Minorit),
          HighestPerc20wCar = pmax(Perc_Pov20,Perc_ZeroCar,Perc_Minorit),
          HighestPerc25woCar = pmax(Perc_Pov25,Perc_Minorit),
-         HighestPerc20woCar = pmax(Perc_Pov20,Perc_Minorit)) %>%
-  mutate(GEOID20 = GEOID)
+         HighestPerc20woCar = pmax(Perc_Pov20,Perc_Minorit))
 
 
 # Join Tables and Region Geography -------------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -138,8 +134,8 @@ efa2020 <- left_join(MinorityTable2020,VehicleTable2020,by= c("NAME","GEOID")) %
 #' are not within the WFRC/MAG model region. Also, determine whether or not each 
 #' region's percentage is within the calculated thresehold (whether or not it is 
 #' at least one standard devation from the region's mean)
-efa2020shpb4 <- left_join(efa2020,utahblocksshp,by="GEOID20") %>%
-  rename("Geography" = NAME) %>%
+efa2020shpb4 <- left_join(efa2020,wfrc_blockgroups,by="GEOID") %>%
+  mutate("Geography"=NAME.x) %>%
   mutate(within = as.character(st_within(geometry,wfrcboundary$geometry))) %>%
   filter(within == "1",is.na(PercZeroCa)==FALSE) %>%
   mutate(meanMin = mean(PercMinori),
@@ -158,7 +154,7 @@ efa2020shpb4 <- left_join(efa2020,utahblocksshp,by="GEOID20") %>%
   mutate(OBJECTID = row_number(), SHAPE=geometry)
 # select the columns needed for further analysis
 efa2020shp <- efa2020shpb4 %>%
-  select(OBJECTID,SHAPE,Geography,Population,Poverty,PercPovert,SD_Pov,Perc_Pov25,Perc_Pov20,Minority,PercMinori,SD_Minorit,Perc_Minorit,ZeroCar,PercZeroCa,SD_ZeroCar,Perc_ZeroCar,HighestStDev,HighestPerc25wCar,HighestPerc20wCar,HighestPerc25woCar,HighestPerc20woCar,SHAPE_Leng,SHAPE_Area,IP,IP_Correctional,IP_Juvenile,IP_Nursing,IP_Other,NIP,NIP_College,NIP_Military,NIP_Other)
+  select(OBJECTID,SHAPE,Geography,Population,Poverty,PercPovert,SD_Pov,Perc_Pov25,Perc_Pov20,Minority,PercMinori,SD_Minorit,Perc_Minorit,ZeroCar,PercZeroCa,SD_ZeroCar,Perc_ZeroCar,HighestStDev,HighestPerc25wCar,HighestPerc20wCar,HighestPerc25woCar,HighestPerc20woCar,IP,IP_Correctional,IP_Juvenile,IP_Nursing,IP_Other,NIP,NIP_College,NIP_Military,NIP_Other)
 
 # Create Threshold Comparison Table -------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #' create a table comparing the default thresholds and the calculated thresholds
