@@ -38,18 +38,9 @@ library(knitr)
 library(kableExtra)
 library(magrittr)
 library(leaflet)
-
-# Read in the data needed to redetermine the EFAs
-efashp2017 <- st_read("data/Equity_Focus_Areas/EquityFocusAreas.shp") %>%  st_transform(4326)
-wfrcboundary <- st_read("data/WFRCBoundary2018/WFRCBoundary2018.shp") %>% summarize(geometry = st_union(geometry)) %>%
-  st_transform(4326)
-utahblocksshp <- st_read("data/Utah_Census_Block_Groups_2020/CensusBlockGroups2020.shp") %>% 
-  select(GEOID20,SHAPE_Leng,SHAPE_Area) %>%
-  st_transform(4326)
-minority <- read_csv("data/ACSDT5Y2020.B03002/ACSDT5Y2020.B03002_data_with_overlays_2022-06-07T113506.csv")
-vehicles <- read_csv("data/ACSDT5Y2020.B25044/ACSDT5Y2020.B25044_data_with_overlays_2022-06-07T123124.csv")
-income <- read_csv("data/ACSDT5Y2020.C17002/ACSDT5Y2020.C17002_data_with_overlays_2022-06-07T123423.csv")
-groupQuarter <- read_csv("data/DECENNIALPL2020.P5/DECENNIALPL2020.P5_data_with_overlays_2022-06-23T135404.csv")
+library(tidycensus)
+library(tigris)
+census_api_key("0196454888e2441971be7360589dd0399e036978")
 
 #functions -------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 delete_low_pop_dens <- function(table){
@@ -60,47 +51,85 @@ delete_low_pop_dens <- function(table){
     filter(PopDens > 2000)
 }
 
+get_acs_wfrc <- function(geo,vars,state,counties,year){
+  get_acs(geography = geo,
+          variables = vars,
+          state = state,
+          county = counties,
+          year = year
+  )
+}
+
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+
+# Read in the data needed to redetermine the EFAs
+wfrc_counties <- c("Utah","Davis","Salt Lake","Weber","Box Elder")
+
+efashp2017 <- st_read("data/Equity_Focus_Areas/EquityFocusAreas.shp") %>%  st_transform(4326)
+wfrcboundary <- st_read("data/WFRCBoundary2018/WFRCBoundary2018.shp") %>% summarize(geometry = st_union(geometry)) %>%
+  st_transform(4326)
+utahblocksshp <- st_read("data/Utah_Census_Block_Groups_2020/CensusBlockGroups2020.shp") %>% 
+  select(GEOID20,SHAPE_Leng,SHAPE_Area) %>%
+  st_transform(4326)
+
+minVars <- paste0("B03002_00", c(1,3))
+minority <- get_acs_wfrc("block group", minVars, "UT", wfrc_counties,2020) %>% select(-moe) %>%
+  pivot_wider(names_from = variable,values_from = c(estimate))
+  
+vehVars <- c(paste0("B25044_00",c(1,3)),"B25044_010")
+vehicles <- get_acs_wfrc("block group", vehVars, "UT", wfrc_counties, 2020) %>% select(-moe) %>%
+  pivot_wider(names_from = variable,values_from = c(estimate))
+
+incVars <- paste0("C17002_00", c(1:3))
+income <- get_acs_wfrc("block group",incVars,"UT",wfrc_counties,2020) %>% select(-moe) %>%
+  pivot_wider(names_from = variable,values_from = c(estimate))
+
+groupQuarter <- read_csv("data/DECENNIALPL2020.P5/DECENNIALPL2020.P5_data_with_overlays_2022-06-23T135404.csv")
+
+#groupVars <- c(paste0("P5_00",c(2:9)),"P5_010")
+#groupQuarter <- get_acs_wfrc("block group",groupVars,"UT",2020) %>% select(-moe) %>%
+#  pivot_wider(names_from = variable,values_from = c(estimate))
+
+
 # Basic Table Analysis -------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #' manipulate all three tables used to determine EFAs. For each table, calculate the percentage
 #' for each block group. Additionally, calculate whether or not each block meets the default
 #' threshold set a few years ago
-MinorityTable2020 <- minority[-1,] %>%
-  rename("Population"=B03002_001E, "White_E"=B03002_003E, "White_M" = B03002_003M) %>%
-  mutate(Population = as.numeric(Population), White_E = as.numeric(White_E), White_M = as.numeric(White_M)) %>%
+MinorityTable2020 <- minority %>%
+  rename("Population"=B03002_001, "White_E"=B03002_003) %>%
   mutate(Minority = Population - White_E) %>%
   mutate("PercMinori" = round(Minority/Population,3)) %>%
-  select(NAME,GEO_ID,Population,Minority,PercMinori) %>%
+  select(NAME,GEOID,Population,Minority,PercMinori) %>%
   mutate(Perc_Minorit = ifelse(PercMinori > 0.4, 1,0))
-VehicleTable2020 <- vehicles[-1,] %>%
-  rename("TotalHH"=B25044_001E, "OwnerZeroVehs_E"=B25044_003E,"OwnerZeroVehs_M"=B25044_003M, "RenterZeroVehs_E" = B25044_010E,"RenterZeroVehs_M" = B25044_010M) %>%
-  mutate(TotalHH = as.numeric(TotalHH), OwnerZeroVehs_E = as.numeric(OwnerZeroVehs_E), OwnerZeroVehs_M = as.numeric(OwnerZeroVehs_M), RenterZeroVehs_E = as.numeric(RenterZeroVehs_E), RenterZeroVehs_M = as.numeric(RenterZeroVehs_M)) %>%
+VehicleTable2020 <- vehicles %>%
+  rename("TotalHH"=B25044_001, "OwnerZeroVehs_E"=B25044_003, "RenterZeroVehs_E" = B25044_010) %>%
   mutate(ZeroCar = OwnerZeroVehs_E + RenterZeroVehs_E) %>%
   mutate(PercZeroCa = round(ZeroCar/TotalHH,3)) %>%
-  select(NAME,GEO_ID,ZeroCar,PercZeroCa) %>%
+  select(NAME,GEOID,ZeroCar,PercZeroCa) %>%
   mutate(Perc_ZeroCar = ifelse(PercZeroCa > 0.1,1,0))
-PovertyTable2020 <- income[-1,] %>%
-  rename("pop" = C17002_001E, "superpoor_e" = C17002_002E, "superpoor_m" = C17002_002M, "poor_e" = C17002_003E, "poor_m" = C17002_003M) %>%
-  mutate(pop = as.numeric(pop), superpoor_e = as.numeric(superpoor_e), superpoor_m = as.numeric(superpoor_m), poor_e = as.numeric(poor_e), poor_m = as.numeric(poor_m)) %>%
+PovertyTable2020 <- income %>%
+  rename("pop" = C17002_001, "superpoor_e" = C17002_002, "poor_e" = C17002_003) %>%
   mutate(Poverty = superpoor_e + poor_e) %>%
   mutate(PercPovert = round(Poverty/pop,3)) %>%
-  select(NAME,GEO_ID,Poverty,PercPovert) %>%
+  select(NAME,GEOID,Poverty,PercPovert) %>%
   mutate(Perc_Pov25 = ifelse(PercPovert > 0.25,1,0),
          Perc_Pov20 = ifelse(PercPovert > 0.2,1,0))
 GroupQuarter2020 <- groupQuarter [-1,] %>%
   rename("IP" = P5_002N, "IP_Correctional" = P5_003N,"IP_Juvenile" = P5_004N, "IP_Nursing" = P5_005N, "IP_Other" = P5_006N,
          "NIP" = P5_007N, "NIP_College"=P5_008N,"NIP_Military"=P5_009N,"NIP_Other"=P5_010N) %>%
   mutate(IP = as.numeric(IP),IP_Correctional=as.numeric(IP_Correctional),IP_Juvenile=as.numeric(IP_Juvenile),IP_Nursing=as.numeric(IP_Nursing),IP_Other=as.numeric(IP_Other),
-         NIP = as.numeric(NIP),NIP_College=as.numeric(NIP_College),NIP_Military=as.numeric(NIP_Military),NIP_Other=as.numeric(NIP_Other))
+         NIP = as.numeric(NIP),NIP_College=as.numeric(NIP_College),NIP_Military=as.numeric(NIP_Military),NIP_Other=as.numeric(NIP_Other),
+         GEOID = substring(GEO_ID,10)) %>% select(-GEO_ID)
 
 #' join together all three tables
-efa2020 <- left_join(MinorityTable2020,VehicleTable2020,by= c("NAME","GEO_ID")) %>%
-  left_join(PovertyTable2020,by=c("NAME","GEO_ID")) %>%
-  left_join(GroupQuarter2020, by = c("NAME","GEO_ID")) %>%
+efa2020 <- left_join(MinorityTable2020,VehicleTable2020,by= c("NAME","GEOID")) %>%
+  left_join(PovertyTable2020,by=c("NAME","GEOID")) %>%
+  left_join(GroupQuarter2020, by = c("NAME","GEOID")) %>%
   mutate(HighestPerc25wCar = pmax(Perc_Pov25,Perc_ZeroCar,Perc_Minorit),
          HighestPerc20wCar = pmax(Perc_Pov20,Perc_ZeroCar,Perc_Minorit),
          HighestPerc25woCar = pmax(Perc_Pov25,Perc_Minorit),
          HighestPerc20woCar = pmax(Perc_Pov20,Perc_Minorit)) %>%
-  mutate(GEOID20 = substring(GEO_ID,10))
+  mutate(GEOID20 = GEOID)
 
 
 # Join Tables and Region Geography -------------------------------------------------------------------------------------------------------------------------------------------------------------#

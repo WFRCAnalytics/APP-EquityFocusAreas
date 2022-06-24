@@ -1,6 +1,8 @@
 library(shiny)
 library(shinydashboard)
 library(tidyverse)
+library(tidycensus)
+library(tigris)
 library(sf)
 library(knitr)
 library(kableExtra)

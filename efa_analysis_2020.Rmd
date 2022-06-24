@@ -14,6 +14,8 @@ library(leaflet)
 library(shiny)
 library(shinydashboard)
 library(rsconnect)
+library(tidycensus)
+library(tigris)
 source("R/efamap/efa_analysis_2020.R")
 ```
 
