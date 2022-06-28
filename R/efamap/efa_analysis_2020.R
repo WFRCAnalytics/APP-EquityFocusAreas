@@ -221,5 +221,5 @@ efaHisto20 <- efa2020shpb4 %>%
 
 #createHistogram(efaHisto20,"ZeroCar", 2020)
 #createHistogram(efaHisto20, "Minority", 2020)
-#reateHistogram(efaHisto20, "Poverty", 2020)
+#createHistogram(efaHisto20, "Poverty", 2020)
 

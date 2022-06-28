@@ -106,7 +106,7 @@ createHistogram <- function(histoTable, variable, year){
   varTable <- histoTable %>% filter(Variable == variable, Year == year)
   
   ggplot(varTable, aes(x = Percentage)) +
-    geom_histogram(binwidth = 0.025) + 
+    geom_histogram(binwidth = 0.01) + 
     geom_vline(data = varTable, aes(xintercept = Calculated, color = "Calculated Threshold"), size = 1) +
     geom_vline(data = varTable, aes(xintercept = Assumed, color = "Previous Threshold"), size = 1) +
     theme_bw() 
@@ -116,9 +116,9 @@ createHistogram17 <- function(histoTable, variable, year){
   varTable <- histoTable %>% filter(Variable == variable, Year == year)
   
   ggplot(varTable, aes(x = Percentage)) +
-    geom_histogram(binwidth = 0.025) + 
+    geom_histogram(binwidth = 0.01) + 
     geom_vline(data = varTable, aes(xintercept = Assumed, color = "Previous Threshold"), size = 1) +
-    theme_bw() 
+    theme_bw()
 } 
 
 
