@@ -8,6 +8,7 @@ library(knitr)
 library(kableExtra)
 library(magrittr)
 library(leaflet)
+library(DT)
 source("efa_analysis_2020.R")
 
 
@@ -18,6 +19,9 @@ ui <- fluidPage(
              leafletOutput("map")
     ),
     tabPanel("Histograms", fluid = TRUE,
+             tags$head(
+               tags$style(type="text/css", ".dataTables_filter {display: none;    }")
+              ),
              sidebarLayout(position = "left",
                            sidebarPanel("2020 Percent Distribution Histograms",
                                         checkboxGroupInput(inputId = "Variable",
@@ -27,7 +31,9 @@ ui <- fluidPage(
                                      column(6,plotOutput(outputId="plotgraph", width="500px",height="400px")))
                
              ),
-             plotOutput("graph")
+             fluidRow(
+               splitLayout(cellWidths = c("70%","30%"),plotOutput("graph"),DT::dataTableOutput("table"))
+             )
     )
   )
 )
@@ -40,6 +46,17 @@ server <- function(input, output) {
   output$graph <- renderPlot({
     createHistogram(efaHisto20, input$Variable, 2020)
   })
+  output$table <- renderDataTable({
+    percentage_table(efa2020shpb4)
+  },
+  options=list(
+    bLengthChange=0,  # show/hide records per page dropdown
+    bFilter=0,  # global search box on/off
+    bInfo=0,   # information on/off (how many records filtered, etc)
+    bAutoWidth=0,  # automatic column width calculation, disable if passing column width via aoColumnDefs
+    scrollX = FALSE,
+    scroller = FALSE
+  ))
 }
 
 

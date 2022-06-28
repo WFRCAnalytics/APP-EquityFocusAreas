@@ -96,7 +96,7 @@ percentage_table <- function(efa2020shpb4){
               assumedVehPerc = 0.100) %>%
     unique() %>%
     pivot_longer(everything(),values_to = "values", names_to = "headers") %>%
-    mutate(Type = ifelse(grepl("calc",headers),"Calculated","Assumed"),
+    mutate(Type = ifelse(grepl("calc",headers),"Calculated","Previous"),
            Category = ifelse(grepl("Pov",headers),"Poverty",ifelse(grepl("Min",headers),"Minority","ZeroCar"))) %>%
     select(-headers)%>%
     pivot_wider(names_from=Category,values_from = c(values))
