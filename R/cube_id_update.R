@@ -71,52 +71,8 @@ write_csv(descrip, "node_key_v832_to_v9.csv")
 
 sum(is.na(descrip$N_v832_correct))
 
-
-
-
-#v9_nodes_select <- v9_nodes %>% select(N,GEOGKEY)
-#joint_v832geog <- left_join(v9_v832_nodes,v832_nodes, by= c("N_v832_guess"="N_v832_correct")) %>%
-#  rename("GEOGKEY_v832" = GEOGKEY) %>%
-#  left_join(v9_nodes_select, by = "N") %>%
-#  rename("GEOGKEY_v9" = GEOGKEY) %>%
-#  select(-X,-Y,-NEWX,-NEWY)
-
-
-bad_guess_good_geogkey <- v9_v832_nodes %>%
-  filter(N_v832_guess != N_v832_correct)
-
-
-
-v832_unmatched_v9 <- left_join(v832_nodes,v9_nodes, by = c("GEOGKEY")) %>%
-  filter(is.na(N)) %>%
-  filter(N_v832_correct > 2890)
-
-v9_new <- v9_v832_nodes %>% filter((N_v832_guess %in% reversejoin$N_v832_correct))
-
-badboys <- reversejoin %>% filter(!(N_v832_correct %in% v9_new$N_v832_guess))
-
-
-
-
-
-#' types of nodes that node match up
-#' exists in v832 but not in v9
-#' exists in v9 but not in v832
-#' different location in v832 than in v9
-
-
-
-
-
-sum(is.na(v9_correct_nodes$N_v832))
-
-v9_correct_na <- v9_correct_nodes %>% filter(is.na(N_v832))
-
-v9_test <- v9_correct_nodes %>% filter(GEOGKEY == "422625_4513799")
-v832_test <- v832_nodes %>% filter(GEOGKEY == "422625_4513800")
-
-# why are there 11,000 unmatched values?!?!
-#3631 good example -- x value is rounded but y is not??
-
 # v9_nodes has 1722 more nodes than v832_nodes
-# there are 2715 nodes that don't join together though
+# there are now 1800 nodes that are not specified
+# BUT there are 77 nodes in the v832 network that don't exist in the v9 network
+
+# There is one NA value that shouldn't be NA I think. But I can't find it right now.
