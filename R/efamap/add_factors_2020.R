@@ -1,18 +1,11 @@
-#' Redetermine Equity Focus Areas (EFAs) for the WFRC/MAG model region using updated
-#' data (2020). EFAs are determined using ACS data relating to Income (Table C17002) and
-#' Minority/Ethnicity (Table B03002). These tables were downloaded and analyzed at the 
-#' block level and downloaded for the following counties: Box Elder, Davis, Weber, 
-#' Salt Lake, Utah
+#' 
 #'
-#'@param wfrcboundary A shapefile containing the region of the WFRC/MAG model
-#'@param wfrc_blockgroups A spatial object containing the 2020 Utah Block group geographies
-#'@param minority Table B03002 from ACS data, organized by block groups in the region
-#'@param income Table C17002 from ACS data, organized by block groups in region
+#'@param  
 #'
-#'@return A geojson file of the final efa geographies for 2020
+
+#'@return 
 #'
-#'@details The regions for the EFAs were calculated using the following thresholds
-#' Poverty >= 20% and Minority >= 40%
+#'@details 
 #'
 #'@author Chris Day
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -26,56 +19,78 @@ library(magrittr)
 library(leaflet)
 library(tidycensus)
 library(tigris)
-source("efa_analysis_scripts.R")
-#source("R/efamap/efa_analysis_scripts.R")
+#source("efa_analysis_scripts.R")
+source("R/efamap/efa_analysis_scripts.R")
 census_api_key("0196454888e2441971be7360589dd0399e036978")
 
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-# Read in the data needed to determine the EFAs
+# Read in the data needed to redetermine the EFAs
 wfrc_counties <- c("Utah","Davis","Salt Lake","Weber","Box Elder")
+
+#' TODO: Can shapefiles be read directly from internet? (efashp2017, health and schools, and maybe wfrc boundary)
+#' Also, how can I read in the block group data without downloading it?
 
 wfrcboundary <- st_read("data/WFRCBoundary2018/WFRCBoundary2018.shp") %>% summarize(geometry = st_union(geometry)) %>%
   st_transform(4326)
 wfrc_blockgroups <- block_groups("UT",county = wfrc_counties,cb=TRUE) %>%
   st_transform(4326)
 
-minVars <- paste0("B03002_00", c(1,3))
-minority20 <- get_acs_wfrc("block group", minVars, "UT", wfrc_counties,2020) %>% select(-moe) %>%
+# Zero Car Houshoulds
+vehVars <- c(paste0("B25044_00",c(1,3)),"B25044_010")
+vehicles20 <- get_acs_wfrc("block group", vehVars, "UT", wfrc_counties, 2020) %>% select(-moe) %>%
   pivot_wider(names_from = variable,values_from = c(estimate))
-  
-incVars <- paste0("C17002_00", c(1:3))
-income20 <- get_acs_wfrc("block group",incVars,"UT",wfrc_counties,2020) %>% select(-moe) %>%
+
+ageVars <- c(paste0("B01001_00", c(1:9)),paste0("B01001_0",c(10:49)))
+age20 <- get_acs_wfrc("block group", ageVars, "UT", wfrc_counties, 2020) %>% select(-moe) %>%
   pivot_wider(names_from = variable,values_from = c(estimate))
+
 
 # Basic Table Analysis -------------------------------------------------------------------------------------------------------------------------------------------------------------#
-#' manipulate all three tables used to determine EFAs. For each table, calculate the percentage
-#' for each block group.
-MinorityTable2020 <- minority_percent(minority20)
-PovertyTable2020 <- poverty_percent(income20) %>% select(-Perc_Pov25)
+vehiclesTable <-   vehicles20 %>%
+  rename("TotalHH"=B25044_001, "OwnerZeroVehs_E"=B25044_003, "RenterZeroVehs_E" = B25044_010) %>%
+  mutate(ZeroCar = OwnerZeroVehs_E + RenterZeroVehs_E) %>%
+  mutate(Percent = round(ZeroCar/TotalHH,3),
+         Factor = "ZeroCar") %>%
+  select(NAME,GEOID,Factor,Percent)
 
-efa2020 <- left_join(MinorityTable2020,PovertyTable2020,by=c("NAME","GEOID")) %>%
-  mutate(HighestPerc = pmax(Perc_Pov20,Perc_Minorit))
+ageTable <- age20 %>%
+  rename("Population" = B01001_001) %>%
+  mutate(PopUnder18 = B01001_003 + B01001_004 + B01001_005 + B01001_006 + B01001_027 + B01001_028 + B01001_029 + B01001_030,
+         Pop65P = B01001_020 + B01001_021 + B01001_022 + B01001_023 + B01001_025 + B01001_025 + B01001_044 + B01001_045 + B01001_046 + B01001_047 + B01001_048 + B01001_049) %>%
+  select(NAME,GEOID,Population,PopUnder18,Pop65P)
+ageUnder18 <- ageTable %>%
+  mutate(Factor = "ageUnder18", Percent = PopUnder18/Population) %>%
+  select(NAME,GEOID,Factor,Percent)
+age65P <- ageTable %>%
+  mutate(Factor = "age65P", Percent = Pop65P/Population) %>%
+  select(NAME,GEOID,Factor,Percent)
+
+additional_factors <- bind_rows(vehiclesTable,ageUnder18,age65P) %>%
+  group_by(Factor) %>%
+  summarize(mean = mean(Percent), sd = sd(Percent)) %>%
+  ungroup()
+  
+  
+  
+  
+  
+  
+#' join together all four tables
+efa2020 <- initial_join20(MinorityTable2020,VehicleTable2020,PovertyTable2020,GroupQuarter2020)
+
 
 # Join Tables and Region Geography -------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #' join together the joint table with the block group shapefile to assign a geometry
 #' to each of the block group locations. Additionally, filter out all block groups that
-#' are not within the WFRC/MAG model region.
-efa2020shpb4 <- left_join(efa2020,wfrc_blockgroups,by="GEOID") %>%
-  mutate("Geography"=NAME.x) %>%
-  mutate(within = as.character(st_within(geometry,wfrcboundary$geometry))) %>%
-  filter(within == "1") %>%
-  mutate(meanMin = mean(PercMinori),
-         sdMin = sd(PercMinori),
-         meanPov = mean(PercPovert),
-         sdPov = sd(PercPovert)) %>%
-  mutate(povsd = (PercPovert - meanPov)/sdPov,
-         minsd = (PercMinori - meanMin)/sdMin) %>%
-  mutate(SD_Pov = ifelse(povsd >= 2, 2, ifelse(povsd >= 1, 1, 0)),
-         SD_Minorit = ifelse(minsd >= 2, 2, ifelse(minsd >= 1, 1, 0))) %>%
-  mutate(HighestStDev = pmax(SD_Pov,SD_Minorit)) %>%
-  mutate(OBJECTID = row_number(), SHAPE=geometry) %>%
-  select(OBJECTID,SHAPE,Geography,Population,Poverty,PercPovert,SD_Pov,Perc_Pov20,Minority,PercMinori,SD_Minorit,Perc_Minorit,HighestStDev)
+#' are not within the WFRC/MAG model region. Also, determine whether or not each 
+#' region's percentage is within the calculated thresehold (whether or not it is 
+#' at least one standard devation from the region's mean)
+efa2020shpb4 <- geometry_calculate(efa2020,wfrc_blockgroups)
+
+# select the columns needed for further analysis
+efa2020shp <- efa2020shpb4 %>%
+  select(OBJECTID,SHAPE,Geography,Population,Poverty,PercPovert,SD_Pov,Perc_Pov25,Perc_Pov20,Minority,PercMinori,SD_Minorit,Perc_Minorit,ZeroCar,PercZeroCa,SD_ZeroCar,Perc_ZeroCar,HighestStDev,HighestPerc25wCar,HighestPerc20wCar,HighestPerc25woCar,HighestPerc20woCar,IP,IP_Correctional,IP_Juvenile,IP_Nursing,IP_Other,NIP,NIP_College,NIP_Military,NIP_Other)
 
 
 #Create EFA GeoPackage for Original Analysis -------------------------------------------------------------------------------------------------------------------------------------------------------------#

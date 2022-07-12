@@ -16,7 +16,7 @@ library(shinydashboard)
 library(rsconnect)
 library(tidycensus)
 library(tigris)
-source("R/efamap/efa_analysis_2020.R")
+source("R/efamap/efa_analysis_2020_comparison.R")
 ```
 
 ```{r, width = 40, height = 30}
