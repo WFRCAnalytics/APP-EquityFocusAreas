@@ -1,13 +1,35 @@
+#' This script is used to link the most recent version of the v832 TDM node ids with the new v9 TDM node ids.
+#' Linking the old node ids with the new ones is needed in order to connect the two networks. This connection is
+#' helpful now while transitioning to the new network and may be helpful in the future if we need to get data from
+#' the old network.
+#'
+#'@param v9_nodes An exported dbf file of the v9 network nodes.
+#'@param v832_nodes An exported dbf file of the most recent v832 network nodes.
+#'
+#'@return A csv file containing the node id of the v832 network linked with the v9 network node ids.
+#'
+#'@details This script is useful for this particular task, but probably isn't a sustainable methodology. In the future,
+#'a new script will probably have to be constructed again. Many parts of this script are exclusive to the specific node
+#'ids that currently exist.
+#'
+#'@author Chris Day
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------#
+
+#' needed libraries
 library(tidyverse)
 library(readr)
 library(foreign)
 
+# read in both node tables from both networks
 v9_nodes <- read.dbf("data/MasterNet - 2022-05-25.dbf")
 v832_nodes <- read.dbf("data/Master_2022-03-22_new.dbf") %>%
   select(N,X,NEWX,Y,NEWY,GEOGKEY) %>% rename("N_v832_correct" = N)
 
+# join by GEOGKEY (Xcoord + "_" + Ycoord)
+# since some nodes were moved between networks, GEOGKEY doesn't match all of the node ids together
 v9_v832_nodes <- left_join(v9_nodes,v832_nodes,by = c("GEOGKEY")) %>%
   select(N,N_V832,N_V9,N_v832_correct) %>%
+  # develop a guess for node connection by simply subtracting by 10000 or using the same node id
   mutate(N_v832_guess = ifelse(N < 2890, N, ifelse(N < 100000, N - 10000, N)))
 
 
@@ -24,6 +46,7 @@ moved_nodes_bad_guess <- moved_nodes %>%
   filter(!(moved_node %in% v9_v832_nodes$N_v832_guess))
 
 # there are 167 cases where a node exists in v832 but needs manual inspection to determine v9 node
+# use 0 to denote those nodes that exist in v832 but not in v9 (or are too confusing)
 odd_cases <- data.frame(
   N_v832_manual = c(3679, 3687,  3798,  3933,  4270, 4276, 4299,  4452, 4479,  4567, 4720,  4730,  4775,  4814,  5081,  5203, 5231, 5463, 5794,
                      5799, 5895,  5955, 5963, 5992,  6000,   6073, 6074, 6079,  6130, 6139,  6201, 6324,  6366,  6414,  6419,  6461,  6468, 
@@ -48,9 +71,11 @@ odd_cases <- data.frame(
 ) %>%
   mutate(description = ifelse(N == 0, "Node Not in v9",NA))
 
+# write csv of nodes that aren't showing up in v9 network
 Forgotten_Nodes <- odd_cases %>% filter(N ==0)
 write_csv(Forgotten_Nodes,"forgotten_nodes.csv")
 
+# determine the v832 node that best fits the v9 node and write a description for how that id was determined
 descrip <- v9_v832_nodes %>%
   left_join(moved_nodes_good_guess, by = c("N_v832_guess" = "N_v832_correct")) %>%
   left_join(odd_cases, by = c("N")) %>%
@@ -67,6 +92,7 @@ descrip <- v9_v832_nodes %>%
   ) %>%
   select(-N_v832_guess,-moved_node,-N_v832_manual)
 
+# write csv of node key
 write_csv(descrip, "node_key_v832_to_v9.csv")
 
 sum(is.na(descrip$N_v832_correct))
