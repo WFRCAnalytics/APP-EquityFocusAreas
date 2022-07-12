@@ -1,11 +1,28 @@
-#' 
+#' Redetermine Equity Focus Areas (EFAs) for the WFRC/MAG model region using updated
+#' data (2020). EFAs are determined using ACS data relating to Income (Table C17002),
+#' Minority/Ethnicity (Table B03002) and Household Vehicles (Table B25044). These tables
+#' were downloaded and analyzed at the block level and downloaded for the following counties:
+#' Box Elder, Davis, Weber, Salt Lake, Utah
 #'
-#'@param  
+#'@param efashp A shapefile containing the previous EFAs, I beleive form 2017 data
+#'@param wfrcboundary A shapefile containing the region of the WFRC/MAG model
+#'@param wfrc_blockgroups A spatial object containing the 2020 Utah Block group geographies
+#'@param minority Table B03002 from ACS data, organized by block groups in the region
+#'@param vehicles Table B25044 from ACS data, organized by block groups in the region
+#'@param income Table C17002 from ACS data, organized by block groups in region
+#'@param groupQuarter Table P5 from ACS data, organized by block groups in region
 #'
-
-#'@return 
+#' Old EFAs: https://data.wfrc.org/datasets/equity-focus-areas/explore?location=40.772488%2C-111.854934%2C9.71&showTable=true
+#' Group Quarter Table: https://data.census.gov/cedsci/table?q=Group%20Quarter&g=0500000US49003%241500000,49011%241500000,49035%241500000,49049%241500000,49057%241500000&y=2020&tid=DECENNIALPL2020.P5
 #'
-#'@details 
+#'@return Geopackages containing the updated EFAs calculated from 2020 data. 
+#'One shapefile is created using standard devations from the mean and the other is 
+#'created from default threseholds
+#'
+#'@details The regions for the EFAs can be calculated in two ways. The first way uses
+#'default thresholds. The second way calculates the mean and standard deviation of the 
+#'variable for the region, and then determines new thresholds based on that. The thresholds
+#'are shown in a table later on.
 #'
 #'@author Chris Day
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -19,8 +36,10 @@ library(magrittr)
 library(leaflet)
 library(tidycensus)
 library(tigris)
-#source("efa_analysis_scripts.R")
-source("R/efamap/efa_analysis_scripts.R")
+library(geojsonio)
+library(geojsonlint)
+source("efa_analysis_scripts.R")
+#source("R/efamap/efa_analysis_scripts.R")
 census_api_key("0196454888e2441971be7360589dd0399e036978")
 
 
@@ -31,51 +50,43 @@ wfrc_counties <- c("Utah","Davis","Salt Lake","Weber","Box Elder")
 #' TODO: Can shapefiles be read directly from internet? (efashp2017, health and schools, and maybe wfrc boundary)
 #' Also, how can I read in the block group data without downloading it?
 
+efashp2017 <- st_read("data/Equity_Focus_Areas/EquityFocusAreas.shp") %>%  st_transform(4326)
 wfrcboundary <- st_read("data/WFRCBoundary2018/WFRCBoundary2018.shp") %>% summarize(geometry = st_union(geometry)) %>%
   st_transform(4326)
 wfrc_blockgroups <- block_groups("UT",county = wfrc_counties,cb=TRUE) %>%
   st_transform(4326)
 
-# Zero Car Houshoulds
+minVars <- paste0("B03002_00", c(1,3))
+minority20 <- get_acs_wfrc("block group", minVars, "UT", wfrc_counties,2020) %>% select(-moe) %>%
+  pivot_wider(names_from = variable,values_from = c(estimate))
+  
 vehVars <- c(paste0("B25044_00",c(1,3)),"B25044_010")
 vehicles20 <- get_acs_wfrc("block group", vehVars, "UT", wfrc_counties, 2020) %>% select(-moe) %>%
   pivot_wider(names_from = variable,values_from = c(estimate))
 
-ageVars <- c(paste0("B01001_00", c(1:9)),paste0("B01001_0",c(10:49)))
-age20 <- get_acs_wfrc("block group", ageVars, "UT", wfrc_counties, 2020) %>% select(-moe) %>%
+incVars <- paste0("C17002_00", c(1:3))
+income20 <- get_acs_wfrc("block group",incVars,"UT",wfrc_counties,2020) %>% select(-moe) %>%
   pivot_wider(names_from = variable,values_from = c(estimate))
+
+groupQuarter <- read_csv("data/DECENNIALPL2020.P5/DECENNIALPL2020.P5_data_with_overlays_2022-06-23T135404.csv")
 
 
 # Basic Table Analysis -------------------------------------------------------------------------------------------------------------------------------------------------------------#
-vehiclesTable <-   vehicles20 %>%
-  rename("TotalHH"=B25044_001, "OwnerZeroVehs_E"=B25044_003, "RenterZeroVehs_E" = B25044_010) %>%
-  mutate(ZeroCar = OwnerZeroVehs_E + RenterZeroVehs_E) %>%
-  mutate(Percent = round(ZeroCar/TotalHH,3),
-         Factor = "ZeroCar") %>%
-  select(NAME,GEOID,Factor,Percent)
+#' manipulate all three tables used to determine EFAs. For each table, calculate the percentage
+#' for each block group. Additionally, calculate whether or not each block meets the default
+#' threshold set a few years ago
+MinorityTable2020 <- minority_percent(minority20)
+PovertyTable2020 <- poverty_percent(income20)
+VehicleTable2020 <- vehicle_percent(vehicles20)
 
-ageTable <- age20 %>%
-  rename("Population" = B01001_001) %>%
-  mutate(PopUnder18 = B01001_003 + B01001_004 + B01001_005 + B01001_006 + B01001_027 + B01001_028 + B01001_029 + B01001_030,
-         Pop65P = B01001_020 + B01001_021 + B01001_022 + B01001_023 + B01001_025 + B01001_025 + B01001_044 + B01001_045 + B01001_046 + B01001_047 + B01001_048 + B01001_049) %>%
-  select(NAME,GEOID,Population,PopUnder18,Pop65P)
-ageUnder18 <- ageTable %>%
-  mutate(Factor = "ageUnder18", Percent = PopUnder18/Population) %>%
-  select(NAME,GEOID,Factor,Percent)
-age65P <- ageTable %>%
-  mutate(Factor = "age65P", Percent = Pop65P/Population) %>%
-  select(NAME,GEOID,Factor,Percent)
+# Extra data to display on the final map
+GroupQuarter2020 <- groupQuarter [-1,] %>%
+  rename("IP" = P5_002N, "IP_Correctional" = P5_003N,"IP_Juvenile" = P5_004N, "IP_Nursing" = P5_005N, "IP_Other" = P5_006N,
+         "NIP" = P5_007N, "NIP_College"=P5_008N,"NIP_Military"=P5_009N,"NIP_Other"=P5_010N) %>%
+  mutate(IP = as.numeric(IP),IP_Correctional=as.numeric(IP_Correctional),IP_Juvenile=as.numeric(IP_Juvenile),IP_Nursing=as.numeric(IP_Nursing),IP_Other=as.numeric(IP_Other),
+         NIP = as.numeric(NIP),NIP_College=as.numeric(NIP_College),NIP_Military=as.numeric(NIP_Military),NIP_Other=as.numeric(NIP_Other),
+         GEOID = substring(GEO_ID,10)) %>% select(-GEO_ID)
 
-additional_factors <- bind_rows(vehiclesTable,ageUnder18,age65P) %>%
-  group_by(Factor) %>%
-  summarize(mean = mean(Percent), sd = sd(Percent)) %>%
-  ungroup()
-  
-  
-  
-  
-  
-  
 #' join together all four tables
 efa2020 <- initial_join20(MinorityTable2020,VehicleTable2020,PovertyTable2020,GroupQuarter2020)
 
@@ -130,6 +141,16 @@ efaAnalysis <- bind_rows(list(efaPerc2020Pov25NoCarshp,efaPerc2020Pov20NoCarshp,
 #st_write(efaPerc2020Pov20Carshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov20Car",append=TRUE)
 #st_write(efaPerc2017Pov25NoCarshp, dsn = "outputs/results/EFAs_2017_2.gpkg", layer = "EFA2017Pov25NoCar",append=TRUE)
 #st_write(efaPerc2017Pov20NoCarshp, dsn = "outputs/results/EFAs_2017_2.gpkg", layer = "EFA2017Pov20NoCar",append=TRUE)
+
+# FINAL SELECTED EFA Zones for 2020
+efa2020FinalZones <- efaPerc2020Pov20NoCarshp %>%
+  select(Geography,Population,Poverty,PercPovert,Perc_Pov20,Minority,PercMinori,Perc_Minorit,HighestPerc20woCar,Area_Meters,Area_Miles,PopDens,SHAPE) %>%
+  rename("Perc_Minority40" = Perc_Minorit, "HighestPerc" = HighestPerc20woCar, "PercPoverty" = PercPovert, "Perc_Poverty20" = Perc_Pov20, "PercMinority" = PercMinori)
+#st_write(efa2020FinalZones, dsn = "outputs/results/EquityFocusAreas2020.gpkg", layer = "EFA2020Pov20NoCar",append=TRUE)
+
+# To save as GeoJson (ArcGIS Pro doesn't read GeoJson without paying lots of $$)
+#efa2020final_json <- geojson_json(efa2020FinalZones, lat = 'longitude',lon = 'latitude' ,geometry = "polygon")
+#geojsonio::geojson_write(efa2020final_json,file = "outputs/results/efa2020.geojson")
 
 
 # MAP ANALYSIS --------------------------------------------------------------------------------------------------------------------------------------------------------#

@@ -10,13 +10,18 @@ library(magrittr)
 library(leaflet)
 library(DT)
 source("efa_analysis_2020.R")
+source("efa_add_factors_2020.R")
 
 
 ui <- fluidPage(
   tabsetPanel(
-    tabPanel("Maps", fluid = TRUE,
+    tabPanel("Comparison Map", fluid = TRUE,
              tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
-             leafletOutput("map")
+             leafletOutput("map1")
+    ),
+    tabPanel("Additional Factors Map", fluid = TRUE,
+             tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
+             leafletOutput("map2")
     ),
     tabPanel("Histograms", fluid = TRUE,
              tags$head(
@@ -40,8 +45,11 @@ ui <- fluidPage(
 
 
 server <- function(input, output) {
-  output$map <- renderLeaflet({
+  output$map1 <- renderLeaflet({
     plot_comparison_map() %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
+  })
+  output$map2 <- renderLeaflet({
+    plot_add_factors_map() %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
   })
   output$graph <- renderPlot({
     createHistogram(efaHisto20, input$Variable, 2020)
