@@ -36,6 +36,8 @@ library(magrittr)
 library(leaflet)
 library(tidycensus)
 library(tigris)
+library(geojsonio)
+library(geojsonlint)
 source("efa_analysis_scripts.R")
 #source("R/efamap/efa_analysis_scripts.R")
 census_api_key("0196454888e2441971be7360589dd0399e036978")
@@ -139,6 +141,16 @@ efaAnalysis <- bind_rows(list(efaPerc2020Pov25NoCarshp,efaPerc2020Pov20NoCarshp,
 #st_write(efaPerc2020Pov20Carshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov20Car",append=TRUE)
 #st_write(efaPerc2017Pov25NoCarshp, dsn = "outputs/results/EFAs_2017_2.gpkg", layer = "EFA2017Pov25NoCar",append=TRUE)
 #st_write(efaPerc2017Pov20NoCarshp, dsn = "outputs/results/EFAs_2017_2.gpkg", layer = "EFA2017Pov20NoCar",append=TRUE)
+
+# FINAL SELECTED EFA Zones for 2020
+efa2020FinalZones <- efaPerc2020Pov20NoCarshp %>%
+  select(Geography,Population,Poverty,PercPovert,Perc_Pov20,Minority,PercMinori,Perc_Minorit,HighestPerc20woCar,Area_Meters,Area_Miles,PopDens,SHAPE) %>%
+  rename("Perc_Minority40" = Perc_Minorit, "HighestPerc" = HighestPerc20woCar, "PercPoverty" = PercPovert, "Perc_Poverty20" = Perc_Pov20, "PercMinority" = PercMinori)
+st_write(efa2020FinalZones, dsn = "outputs/results/EquityFocusAreas2020.gpkg", layer = "EFA2020Pov20NoCar",append=TRUE)
+
+# To save as GeoJson (ArcGIS Pro doesn't read GeoJson without paying lots of $$)
+#efa2020final_json <- geojson_json(efa2020FinalZones, lat = 'longitude',lon = 'latitude' ,geometry = "polygon")
+#geojsonio::geojson_write(efa2020final_json,file = "outputs/results/efa2020.geojson")
 
 
 # MAP ANALYSIS --------------------------------------------------------------------------------------------------------------------------------------------------------#
