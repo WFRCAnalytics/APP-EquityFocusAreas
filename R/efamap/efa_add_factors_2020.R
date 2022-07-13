@@ -140,9 +140,13 @@ add_factors_wide <- add_factors_long %>%
 
 # MAP ANALYSIS --------------------------------------------------------------------------------------------------------------------------------------------------------#
 
-plot_add_factors_map <- function(slider1){
-  filtered_factors <- add_factors_long %>%
-    filter(Percent > slider1/100)
+plot_add_factors_map <- function(slider1,selected_factors){
+
+    filtered_factors <- add_factors_long %>%
+    filter(Percent > slider1/100) %>%
+    filter(Factor %in% selected_factors)
+  
+  
   leaflet() %>%
   addPolygons(data = filtered_factors$geometry, 
               fillOpacity = .5,

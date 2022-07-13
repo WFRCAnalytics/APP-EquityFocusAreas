@@ -21,7 +21,10 @@ ui <- fluidPage(
              tags$style(type = "text/css", "#map2 {height: calc(100vh - 80px) !important;}"),
              leafletOutput("map2"),
              sliderInput("slider1", label = h3("Slider"), min = 0, 
-                         max = 100, value = 50)
+                         max = 100, value = 50),
+             checkboxInput(inputId = "A", label = strong("A"), value = FALSE),
+             checkboxInput(inputId = "B", label = strong("B"), value = FALSE),
+             checkboxInput(inputId = "C", label = strong("C"), value = FALSE),
     ),
     tabPanel("Comparison Map", fluid = TRUE,
              tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
@@ -49,9 +52,19 @@ ui <- fluidPage(
 
 
 server <- function(input, output) {
-  output$map2 <- renderLeaflet({
-    plot_add_factors_map(input$slider1) %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
+  selected_rows <- reactive({
+    my_rows <- c()
+    if(input$A){my_rows <- c(my_rows,"minority")}
+    if(input$B){my_rows <- c(my_rows,"poverty")}
+    if(input$C){my_rows <- c(my_rows,"zeroCar")}
+    return(my_rows)
   })
+  output$map2 <- renderLeaflet({
+    plot_add_factors_map(input$slider1,selected_rows()) %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
+  })
+  
+  
+  
   output$map <- renderLeaflet({
     plot_comparison_map() %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
   })
