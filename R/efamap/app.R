@@ -18,18 +18,32 @@ factors <- c("Minority", "Poverty", "Zero Car", "Age Under 18", "Age over 65", "
 ui <- fluidPage(
   tabsetPanel(
     tabPanel("Additional Factors Map", fluid = TRUE,
+      sidebarLayout(
+        mainPanel(
              tags$style(type = "text/css", "#map2 {height: calc(100vh - 80px) !important;}"),
-             leafletOutput("map2"),
-             sliderInput("slider1", label = h3("Slider"), min = 0, 
-                         max = 100, value = 50),
+             leafletOutput("map2")
+        ),
+        sidebarPanel(
              checkboxInput(inputId = "A", label = strong("A"), value = FALSE),
+                conditionalPanel(condition = "input.A == true",
+                                 sliderInput("slider1", label = h3("Slider"), min = 0, 
+                                             max = 100, value = 50),
+                                 numericInput("weight1", "Weight:", 1, min = 1, max = 5),
+                                 verbatimTextOutput("weight1")
+                                 
+                ),
+                                 #WEIGHT VALUE HERE), https://stackoverflow.com/questions/62150415/how-to-make-an-interactive-checklist-in-rstudio-shiny
              checkboxInput(inputId = "B", label = strong("B"), value = FALSE),
-             checkboxInput(inputId = "C", label = strong("C"), value = FALSE),
+             checkboxInput(inputId = "C", label = strong("C"), value = FALSE)
+        )
+      )
     ),
+    
     tabPanel("Comparison Map", fluid = TRUE,
              tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
              leafletOutput("map")
     ),
+    
     tabPanel("Histograms", fluid = TRUE,
              tags$head(
                tags$style(type="text/css", ".dataTables_filter {display: none;    }")
@@ -60,14 +74,15 @@ server <- function(input, output) {
     return(my_rows)
   })
   output$map2 <- renderLeaflet({
-    plot_add_factors_map(input$slider1,selected_rows()) %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
+    plot_add_factors_map(input$slider1,selected_rows(),input$weight1) %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
   })
-  
   
   
   output$map <- renderLeaflet({
     plot_comparison_map() %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
   })
+  
+  
   output$graph <- renderPlot({
     createHistogram(efaHisto20, input$Variable, 2020)
   })

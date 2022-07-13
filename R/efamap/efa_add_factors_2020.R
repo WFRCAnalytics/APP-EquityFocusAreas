@@ -130,32 +130,118 @@ add_factors_long <- additional_factors %>%
   mutate(threshold = mean+sd) %>%
   ungroup()
 
+add_factors_long_clean <- add_factors_long %>%
+  #delete low pop density
+  mutate(SDMEAN = (Percent - mean)/sd) %>%
+  #filter(SDMEAN > 0) %>%
+  select(-mean,-sd)
+
+
 add_factors_wide <- add_factors_long %>%
   pivot_wider(names_from = "Factor",values_from = c("Percent","Total","FactorTotal","mean","sd","threshold"))
-
-
-
-
+  #left join population and tothh
+  #filter out low pop
 
 
 # MAP ANALYSIS --------------------------------------------------------------------------------------------------------------------------------------------------------#
 
-plot_add_factors_map <- function(slider1,selected_factors){
+plot_add_factors_map <- function(slider1,selected_factors,weight1){
 
-    filtered_factors <- add_factors_long %>%
-    filter(Percent > slider1/100) %>%
-    filter(Factor %in% selected_factors)
+    filtered_factors <- add_factors_long_clean %>%
+      mutate(score = weight1*SDMEAN) %>%
+      filter(Percent > slider1/100) %>%
+      filter(Factor %in% selected_factors) %>%
+      group_by(Geography) %>%
+      summarize(sum = sum(score)) %>%
+      left_join(add_factors_wide, by = c("Geography")) %>%
+      rename("score" = sum)
+    
+  pal <- colorNumeric(palette = "Blues", domain =c(min(filtered_factors$score),max(filtered_factors$score)), na.color = "black")
+  filtered_factors <- sf::st_as_sf(filtered_factors)
   
-  
-  leaflet() %>%
-  addPolygons(data = filtered_factors$geometry, 
-              fillOpacity = .5,
-              group = filtered_factors$Factor, 
+  leaflet(data = filtered_factors) %>%
+    addPolygons(
+              fillOpacity = 1,
+              fillColor = ~pal(filtered_factors$score),
+              color = "white",
               weight = .8
+    ) %>%
+    addLegend(
+      "bottomright",
+      pal = qpal,
+      values = test_factors$score,
+      title = "legend",
+      opacity = 1
+    )
+}
+
+
+
+
+
+
+
+
+func <- function(){
+#inputs
+chosenFactors <- c("minority","poverty","limitedEnglish")
+weight1 <- 1
+weight2 <- 2
+weight3 <- 3
+weight4 <- 1
+weight5 <- 5
+weight6 <- 1
+threshold1 <- 0.1
+threshold2 <- 0.2
+threshold3 <- 0.15
+threshold4 <- 0.25
+threshold5 <- 0.4
+threshold6 <- 0.2
+
+
+test_factors <- add_factors_long_clean %>%
+mutate(weight = case_when(
+    Factor == "minority" ~ weight1,
+    Factor == "poverty" ~ weight2,
+    Factor == "zeroCar" ~ weight3,
+    Factor == "ageUnder18" ~ weight4,
+    Factor == "age65P" ~ weight5,
+    Factor == "limitedEnglish" ~ weight6
+  )) %>%
+  mutate(score = weight * SDMEAN) %>%
+  mutate(wantedThreshold = case_when(
+    Factor == "minority" ~ threshold1,
+    Factor == "poverty" ~ threshold2,
+    Factor == "zeroCar" ~ threshold3,
+    Factor == "ageUnder18" ~ threshold4,
+    Factor == "age65P" ~ threshold5,
+    Factor == "limitedEnglish" ~ threshold6
+  )) %>%
+  filter(Percent > wantedThreshold) %>%
+  select(-weight,-wantedThreshold) %>%
+  filter(Factor %in% chosenFactors) %>%
+  group_by(Geography) %>%
+  summarize(sum = sum(score)) %>%
+  left_join(add_factors_wide, by = c("Geography")) %>%
+  rename("score" = sum)
+
+qpal <- colorNumeric(palette = "Blues", domain =c(min(test_factors$score),max(test_factors$score)), na.color = "black")
+test_factors <- sf::st_as_sf(test_factors)
+
+# TEST LEAFLET
+leaflet(data = test_factors) %>%
+  addPolygons(fillOpacity = 1, 
+              fillColor = ~qpal(test_factors$score),
+              color = "white",
+              weight = .8,
   ) %>%
-  addLayersControl(
-    overlayGroups = c(filtered_factors$Factor),
-    options = layersControlOptions(collapsed=FALSE)
+  addLegend(
+    "bottomright",
+    pal = qpal,
+    values = test_factors$score,
+    title = "legend",
+    opacity = 1
   )
 }
+
 
