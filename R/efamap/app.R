@@ -12,16 +12,20 @@ library(DT)
 source("efa_analysis_2020.R")
 source("efa_add_factors_2020.R")
 
+factors <- c("Minority", "Poverty", "Zero Car", "Age Under 18", "Age over 65", "Limited English")
+
 
 ui <- fluidPage(
   tabsetPanel(
+    tabPanel("Additional Factors Map", fluid = TRUE,
+             tags$style(type = "text/css", "#map2 {height: calc(100vh - 80px) !important;}"),
+             leafletOutput("map2"),
+             sliderInput("slider1", label = h3("Slider"), min = 0, 
+                         max = 100, value = 50)
+    ),
     tabPanel("Comparison Map", fluid = TRUE,
              tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
-             leafletOutput("map1")
-    ),
-    tabPanel("Additional Factors Map", fluid = TRUE,
-             tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
-             leafletOutput("map2")
+             leafletOutput("map")
     ),
     tabPanel("Histograms", fluid = TRUE,
              tags$head(
@@ -45,11 +49,11 @@ ui <- fluidPage(
 
 
 server <- function(input, output) {
-  output$map1 <- renderLeaflet({
-    plot_comparison_map() %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
-  })
   output$map2 <- renderLeaflet({
-    plot_add_factors_map() %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
+    plot_add_factors_map(input$slider1) %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
+  })
+  output$map <- renderLeaflet({
+    plot_comparison_map() %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
   })
   output$graph <- renderPlot({
     createHistogram(efaHisto20, input$Variable, 2020)

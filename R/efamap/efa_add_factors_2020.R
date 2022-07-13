@@ -140,15 +140,17 @@ add_factors_wide <- add_factors_long %>%
 
 # MAP ANALYSIS --------------------------------------------------------------------------------------------------------------------------------------------------------#
 
-plot_add_factors_map <- function(){
+plot_add_factors_map <- function(slider1){
+  filtered_factors <- add_factors_long %>%
+    filter(Percent > slider1/100)
   leaflet() %>%
-  addPolygons(data = add_factors_long$geometry, 
+  addPolygons(data = filtered_factors$geometry, 
               fillOpacity = .5,
-              group = add_factors_long$Factor, 
+              group = filtered_factors$Factor, 
               weight = .8
   ) %>%
   addLayersControl(
-    overlayGroups = c(add_factors_long$Factor),
+    overlayGroups = c(filtered_factors$Factor),
     options = layersControlOptions(collapsed=FALSE)
   )
 }
