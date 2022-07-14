@@ -145,11 +145,27 @@ add_factors_wide <- add_factors_long %>%
 
 # MAP ANALYSIS --------------------------------------------------------------------------------------------------------------------------------------------------------#
 
-plot_add_factors_map <- function(slider1,selected_factors,weight1){
+plot_add_factors_map <- function(selected_factors,slider1,slider2,slider3,slider4,slider5,slider6,weight1,weight2,weight3,weight4,weight5,weight6){
 
     filtered_factors <- add_factors_long_clean %>%
-      mutate(score = weight1*SDMEAN) %>%
-      filter(Percent > slider1/100) %>%
+      mutate(weight = case_when(
+        Factor == "minority" ~ as.numeric(weight1),
+        Factor == "poverty" ~ as.numeric(weight2),
+        Factor == "zeroCar" ~ as.numeric(weight3),
+        Factor == "ageUnder18" ~ as.numeric(weight4),
+        Factor == "age65P" ~ as.numeric(weight5),
+        Factor == "limitedEnglish" ~ as.numeric(weight6)
+      )) %>%
+      mutate(score = weight*SDMEAN) %>%
+      mutate(wantedThreshold = case_when(
+        Factor == "minority" ~ slider1,
+        Factor == "poverty" ~ slider2,
+        Factor == "zeroCar" ~ slider3,
+        Factor == "ageUnder18" ~ slider4,
+        Factor == "age65P" ~ slider5,
+        Factor == "limitedEnglish" ~ slider6
+      )) %>%
+      filter(Percent > wantedThreshold/100) %>%
       filter(Factor %in% selected_factors) %>%
       group_by(Geography) %>%
       summarize(sum = sum(score)) %>%
@@ -166,11 +182,12 @@ plot_add_factors_map <- function(slider1,selected_factors,weight1){
               color = "white",
               weight = .8
     ) %>%
+    addProviderTiles(providers$CartoDB.Positron) %>%  # providers$Esri.WorldStreetMap
     addLegend(
       "bottomright",
       pal = pal,
       values = filtered_factors$score,
-      title = "legend",
+      title = "Legend",
       opacity = 1
     )
 }

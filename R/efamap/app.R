@@ -23,18 +23,73 @@ ui <- fluidPage(
              tags$style(type = "text/css", "#map2 {height: calc(100vh - 80px) !important;}"),
              leafletOutput("map2")
         ),
-        sidebarPanel(
-             checkboxInput(inputId = "A", label = strong("A"), value = FALSE),
-                conditionalPanel(condition = "input.A == true",
-                                 sliderInput("slider1", label = h3("Slider"), min = 0, 
-                                             max = 100, value = 50),
-                                 numericInput("weight1", "Weight:", 1, min = 1, max = 5),
+        sidebarPanel(style = "position: fixed; height: 90vh; width: 30%; overflow-y: auto;",
+             checkboxInput(inputId = "Minority", label = strong("Minority"), value = FALSE),
+             tags$head(tags$style(HTML("label {font-weight:normal;}"))),   
+                conditionalPanel(condition = "input.Minority == true",
+                                 tags$h5("Regional Mean: ", strong("24%")),
+                                 tags$h5("Recommended Percentage", em("(1 SD from Mean): "), strong("42%")),
+                                 sliderInput("slider1", label = h6("Select Minimum Percentage:"), min = 0, 
+                                             max = 100, value = 42),
+                                 numericInput("weight1", h6("Select Weight:"), 1, min = 1, max = 5, step = .25),
                                  verbatimTextOutput("weight1")
                                  
                 ),
-                                 #WEIGHT VALUE HERE), https://stackoverflow.com/questions/62150415/how-to-make-an-interactive-checklist-in-rstudio-shiny
-             checkboxInput(inputId = "B", label = strong("B"), value = FALSE),
-             checkboxInput(inputId = "C", label = strong("C"), value = FALSE)
+             checkboxInput(inputId = "Poverty", label = strong("Poverty"), value = FALSE),
+             tags$head(tags$style(HTML("label {font-weight:normal;}"))),   
+             conditionalPanel(condition = "input.Poverty == true",
+                              tags$h5("Regional Mean: ", strong("9%")),
+                              tags$h5("Recommended Percentage", em("(1 SD from Mean): "), strong("21%")),
+                              sliderInput("slider2", label = h6("Select Minimum Percentage:"), min = 0, 
+                                          max = 100, value = 21),
+                              numericInput("weight2", h6("Select Weight:"), 1, min = 1, max = 5, step = .25),
+                              verbatimTextOutput("weight2")
+                              
+             ),
+             checkboxInput(inputId = "ZeroCar", label = strong("Zero Car"), value = FALSE),
+             tags$head(tags$style(HTML("label {font-weight:normal;}"))),   
+             conditionalPanel(condition = "input.ZeroCar == true",
+                              tags$h5("Regional Mean: ", strong("4%")),
+                              tags$h5("Recommended Percentage", em("(1 SD from Mean): "), strong("11%")),
+                              sliderInput("slider3", label = h6("Select Minimum Percentage:"), min = 0, 
+                                          max = 100, value = 11),
+                              numericInput("weight3", h6("Select Weight:"), 1, min = 1, max = 5, step = .25),
+                              verbatimTextOutput("weight3")
+                              
+             ),
+             checkboxInput(inputId = "AgeUnder18", label = strong("Age Under 18"), value = FALSE),
+             tags$head(tags$style(HTML("label {font-weight:normal;}"))),   
+             conditionalPanel(condition = "input.AgeUnder18 == true",
+                              tags$h5("Regional Mean: ", strong("28%")),
+                              tags$h5("Recommended Percentage", em("(1 SD from Mean): "), strong("39%")),
+                              sliderInput("slider4", label = h6("Select Minimum Percentage:"), min = 0, 
+                                          max = 100, value = 39),
+                              numericInput("weight4", h6("Select Weight:"), 1, min = 1, max = 5, step = .25),
+                              verbatimTextOutput("weight4")
+                              
+             ),
+             checkboxInput(inputId = "Age65P", label = strong("Age Above 65"), value = FALSE),
+             tags$head(tags$style(HTML("label {font-weight:normal;}"))),   
+             conditionalPanel(condition = "input.Age65P == true",
+                              tags$h5("Regional Mean: ", strong("11%")),
+                              tags$h5("Recommended Percentage", em("(1 SD from Mean): "), strong("19%")),
+                              sliderInput("slider5", label = h6("Select Minimum Percentage:"), min = 0, 
+                                          max = 100, value = 19),
+                              numericInput("weight5", h6("Select Weight:"), 1, min = 1, max = 5, step = .25),
+                              verbatimTextOutput("weight5")
+                              
+             ),
+             checkboxInput(inputId = "LimitedEnglish", label = strong("Limited English"), value = FALSE),
+             tags$head(tags$style(HTML("label {font-weight:normal;}"))),   
+             conditionalPanel(condition = "input.LimitedEnglish == true",
+                              tags$h5("Regional Mean: ", strong("2%")),
+                              tags$h5("Recommended Percentage", em("(1 SD from Mean): "), strong("7%")),
+                              sliderInput("slider6", label = h6("Select Minimum Percentage:"), min = 0, 
+                                          max = 100, value = 7),
+                              numericInput("weight6", h6("Select Weight:"), 1, min = 1, max = 5, step = .25),
+                              verbatimTextOutput("weight6")
+                              
+             )
         )
       )
     ),
@@ -68,13 +123,19 @@ ui <- fluidPage(
 server <- function(input, output) {
   selected_rows <- reactive({
     my_rows <- c()
-    if(input$A){my_rows <- c(my_rows,"minority")}
-    if(input$B){my_rows <- c(my_rows,"poverty")}
-    if(input$C){my_rows <- c(my_rows,"zeroCar")}
+    if(input$Minority){my_rows <- c(my_rows,"minority")}
+    if(input$Poverty){my_rows <- c(my_rows,"poverty")}
+    if(input$ZeroCar){my_rows <- c(my_rows,"zeroCar")}
+    if(input$AgeUnder18){my_rows <- c(my_rows,"ageUnder18")}
+    if(input$Age65P){my_rows <- c(my_rows,"age65P")}
+    if(input$LimitedEnglish){my_rows <- c(my_rows,"limitedEnglish")}
     return(my_rows)
   })
   output$map2 <- renderLeaflet({
-    plot_add_factors_map(input$slider1,selected_rows(),input$weight1) %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
+    plot_add_factors_map(selected_rows(),
+                         input$slider1,input$slider2,input$slider3,input$slider4,input$slider5,input$slider6,
+                         input$weight1,input$weight2,input$weight3,input$weight4,input$weight5,input$weight6) %>% 
+      setView(lng = -111.8910, lat = 40.7608, zoom = 9)
   })
   
   
