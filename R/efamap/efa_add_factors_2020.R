@@ -156,7 +156,7 @@ plot_add_factors_map <- function(slider1,selected_factors,weight1){
       left_join(add_factors_wide, by = c("Geography")) %>%
       rename("score" = sum)
     
-  pal <- colorNumeric(palette = "Blues", domain =c(min(filtered_factors$score),max(filtered_factors$score)), na.color = "black")
+  pal <- colorQuantile(palette = "Blues", domain =filtered_factors$score, na.color = "black", n = 4)
   filtered_factors <- sf::st_as_sf(filtered_factors)
   
   leaflet(data = filtered_factors) %>%
@@ -168,8 +168,8 @@ plot_add_factors_map <- function(slider1,selected_factors,weight1){
     ) %>%
     addLegend(
       "bottomright",
-      pal = qpal,
-      values = test_factors$score,
+      pal = pal,
+      values = filtered_factors$score,
       title = "legend",
       opacity = 1
     )
