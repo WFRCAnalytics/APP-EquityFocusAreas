@@ -183,7 +183,7 @@ plot_add_factors_map <- function(selected_factors,slider1,slider2,slider3,slider
       left_join(add_factors_wide, by = c("Geography")) %>%
       rename("score" = sum)
     
-  pal <- colorQuantile(palette = "Blues", domain =filtered_factors$score, na.color = "black", n = 4)
+  pal <- colorQuantile(palette = "YlOrRd", domain =filtered_factors$score, na.color = "black", n = 5)
   filtered_factors <- sf::st_as_sf(filtered_factors)
   
   leaflet(data = filtered_factors) %>%
@@ -195,12 +195,12 @@ plot_add_factors_map <- function(selected_factors,slider1,slider2,slider3,slider
               popup = paste("Population:", filtered_factors$Population, "<br>",
                             "Total Households:", filtered_factors$TotalHouseholds, "<br>",
                             "Population Density:", filtered_factors$PopDens, "<br>",
-                            "% Minority:", round(filtered_factors$Percent_minority,4), "<br>",
-                            "% Poverty:", round(filtered_factors$Percent_poverty,4), "<br>",
-                            "% Zero Car:", round(filtered_factors$Percent_zeroCar,4), "<br>",
-                            "% Age Under 18:", round(filtered_factors$Percent_ageUnder18,4), "<br>",
-                            "% Age Over 65:", round(filtered_factors$Percent_age65P,4), "<br>",
-                            "% Limited English:", round(filtered_factors$Percent_limitedEnglish,4), "<br>",
+                            "% Minority:", round(filtered_factors$Percent_minority,4)*100, "<br>",
+                            "% Poverty:", round(filtered_factors$Percent_poverty,4)*100, "<br>",
+                            "% Zero Car:", round(filtered_factors$Percent_zeroCar,4)*100, "<br>",
+                            "% Age Under 18:", round(filtered_factors$Percent_ageUnder18,4)*100, "<br>",
+                            "% Age Over 65:", round(filtered_factors$Percent_age65P,4)*100, "<br>",
+                            "% Limited English:", round(filtered_factors$Percent_limitedEnglish,4)*100, "<br>",
                             "Score:", round(filtered_factors$score,4), "<br>")
     ) %>%
     addProviderTiles(providers$CartoDB.Positron) %>%  # providers$Esri.WorldStreetMap
