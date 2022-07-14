@@ -32,7 +32,9 @@ ui <- fluidPage(
                                  sliderInput("slider1", label = h6("Select Minimum Percentage:"), min = 0, 
                                              max = 100, value = 42),
                                  numericInput("weight1", h6("Select Weight:"), 1, min = 1, max = 5, step = .25),
-                                 verbatimTextOutput("weight1")
+                                 verbatimTextOutput("weight1"),
+                                 checkboxInput(inputId = "histo1", label = h5("Show Density Plot"), value = FALSE),
+                                      conditionalPanel(condition = "input.histo1 == true", plotOutput(outputId="histo1graph"))
                                  
                 ),
              checkboxInput(inputId = "Poverty", label = strong("Poverty"), value = FALSE),
@@ -43,7 +45,9 @@ ui <- fluidPage(
                               sliderInput("slider2", label = h6("Select Minimum Percentage:"), min = 0, 
                                           max = 100, value = 21),
                               numericInput("weight2", h6("Select Weight:"), 1, min = 1, max = 5, step = .25),
-                              verbatimTextOutput("weight2")
+                              verbatimTextOutput("weight2"),
+                              checkboxInput(inputId = "histo2", label = h5("Show Density Plot"), value = FALSE),
+                              conditionalPanel(condition = "input.histo2 == true", plotOutput(outputId="histo2graph"))
                               
              ),
              checkboxInput(inputId = "ZeroCar", label = strong("Zero Car"), value = FALSE),
@@ -54,7 +58,9 @@ ui <- fluidPage(
                               sliderInput("slider3", label = h6("Select Minimum Percentage:"), min = 0, 
                                           max = 100, value = 11),
                               numericInput("weight3", h6("Select Weight:"), 1, min = 1, max = 5, step = .25),
-                              verbatimTextOutput("weight3")
+                              verbatimTextOutput("weight3"),
+                              checkboxInput(inputId = "histo3", label = h5("Show Density Plot"), value = FALSE),
+                              conditionalPanel(condition = "input.histo3 == true", plotOutput(outputId="histo3graph"))
                               
              ),
              checkboxInput(inputId = "AgeUnder18", label = strong("Age Under 18"), value = FALSE),
@@ -65,7 +71,9 @@ ui <- fluidPage(
                               sliderInput("slider4", label = h6("Select Minimum Percentage:"), min = 0, 
                                           max = 100, value = 39),
                               numericInput("weight4", h6("Select Weight:"), 1, min = 1, max = 5, step = .25),
-                              verbatimTextOutput("weight4")
+                              verbatimTextOutput("weight4"),
+                              checkboxInput(inputId = "histo4", label = h5("Show Density Plot"), value = FALSE),
+                              conditionalPanel(condition = "input.histo4 == true", plotOutput(outputId="histo4graph"))
                               
              ),
              checkboxInput(inputId = "Age65P", label = strong("Age Above 65"), value = FALSE),
@@ -76,7 +84,9 @@ ui <- fluidPage(
                               sliderInput("slider5", label = h6("Select Minimum Percentage:"), min = 0, 
                                           max = 100, value = 19),
                               numericInput("weight5", h6("Select Weight:"), 1, min = 1, max = 5, step = .25),
-                              verbatimTextOutput("weight5")
+                              verbatimTextOutput("weight5"),
+                              checkboxInput(inputId = "histo5", label = h5("Show Density Plot"), value = FALSE),
+                              conditionalPanel(condition = "input.histo5 == true", plotOutput(outputId="histo5graph"))
                               
              ),
              checkboxInput(inputId = "LimitedEnglish", label = strong("Limited English"), value = FALSE),
@@ -87,7 +97,9 @@ ui <- fluidPage(
                               sliderInput("slider6", label = h6("Select Minimum Percentage:"), min = 0, 
                                           max = 100, value = 7),
                               numericInput("weight6", h6("Select Weight:"), 1, min = 1, max = 5, step = .25),
-                              verbatimTextOutput("weight6")
+                              verbatimTextOutput("weight6"),
+                              checkboxInput(inputId = "histo6", label = h5("Show Density Plot"), value = FALSE),
+                              conditionalPanel(condition = "input.histo6 == true", plotOutput(outputId="histo6graph"))
                               
              )
         )
@@ -134,16 +146,28 @@ server <- function(input, output) {
   output$map2 <- renderLeaflet({
     plot_add_factors_map(selected_rows(),
                          input$slider1,input$slider2,input$slider3,input$slider4,input$slider5,input$slider6,
-                         input$weight1,input$weight2,input$weight3,input$weight4,input$weight5,input$weight6) %>% 
-      setView(lng = -111.8910, lat = 40.7608, zoom = 9)
+                         input$weight1,input$weight2,input$weight3,input$weight4,input$weight5,input$weight6)
+
   })
+  observe({
+    isolate({
+      new_zoom <- 9
+      if(!is.null(input$map2_zoom)) new_zoom <- input$map2_zoom
+      leafletProxy('map2') %>%
+        setView(lng = -111.8910, lat = 40.7608, zoom = new_zoom)
+    })
+  }) #https://stackoverflow.com/questions/34985889/how-to-get-the-zoom-level-from-the-leaflet-map-in-r-shiny
   
+  output$histo1graph <- renderPlot({createBasicHistogram(add_factors_long,"minority")})
+  output$histo2graph <- renderPlot({createBasicHistogram(add_factors_long,"poverty")})
+  output$histo3graph <- renderPlot({createBasicHistogram(add_factors_long,"zeroCar")})
+  output$histo4graph <- renderPlot({createBasicHistogram(add_factors_long,"ageUnder18")})
+  output$histo5graph <- renderPlot({createBasicHistogram(add_factors_long,"age65P")})
+  output$histo6graph <- renderPlot({createBasicHistogram(add_factors_long,"limitedEnglish")})
   
   output$map <- renderLeaflet({
     plot_comparison_map() %>% setView(lng = -111.8910, lat = 40.7608, zoom = 9)
   })
-  
-  
   output$graph <- renderPlot({
     createHistogram(efaHisto20, input$Variable, 2020)
   })
