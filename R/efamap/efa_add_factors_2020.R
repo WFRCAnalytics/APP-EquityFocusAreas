@@ -114,6 +114,10 @@ engTable <- eng20 %>%
          Factor = "limitedEnglish") %>%
   select(NAME,GEOID,Factor,Percent,Total,FactorTotal)
 
+extraAttributes <- minorityTable %>%
+  select(GEOID,Total) %>% rename("Population" = Total) %>%
+  left_join(zeroCarTable, by = c("GEOID")) %>%
+  select(GEOID,Population,Total) %>% rename("TotalHouseholds" = Total)
 
 # Join Tables and Filter to WFRC Region
 additional_factors <- bind_rows(minorityTable,povertyTable,zeroCarTable,ageUnder18,age65P,engTable) %>%
@@ -138,10 +142,17 @@ add_factors_long_clean <- add_factors_long %>%
 
 
 add_factors_wide <- add_factors_long %>%
-  pivot_wider(names_from = "Factor",values_from = c("Percent","Total","FactorTotal","mean","sd","threshold"))
+  select(-Total,-mean,-sd,-threshold) %>%
+  pivot_wider(names_from = "Factor",values_from = c("Percent","FactorTotal")) %>%
   #left join population and tothh
+  left_join(extraAttributes, by = "GEOID") %>%
   #filter out low pop
-
+  mutate(Area_Meters = as.numeric(st_area(geometry))) %>%
+  mutate(Area_Miles = Area_Meters / 2589988.11) %>%
+  mutate(PopDens = round(Population / Area_Miles),5) %>%
+  filter(PopDens > 2000)
+  #improve column headers
+  
 
 # MAP ANALYSIS --------------------------------------------------------------------------------------------------------------------------------------------------------#
 
@@ -180,7 +191,17 @@ plot_add_factors_map <- function(selected_factors,slider1,slider2,slider3,slider
               fillOpacity = 1,
               fillColor = ~pal(filtered_factors$score),
               color = "white",
-              weight = .8
+              weight = .8,
+              popup = paste("Population:", filtered_factors$Population, "<br>",
+                            "Total Households:", filtered_factors$TotalHouseholds, "<br>",
+                            "Population Density:", filtered_factors$PopDens, "<br>",
+                            "% Minority:", round(filtered_factors$Percent_minority,4), "<br>",
+                            "% Poverty:", round(filtered_factors$Percent_poverty,4), "<br>",
+                            "% Zero Car:", round(filtered_factors$Percent_zeroCar,4), "<br>",
+                            "% Age Under 18:", round(filtered_factors$Percent_ageUnder18,4), "<br>",
+                            "% Age Over 65:", round(filtered_factors$Percent_age65P,4), "<br>",
+                            "% Limited English:", round(filtered_factors$Percent_limitedEnglish,4), "<br>",
+                            "Score:", round(filtered_factors$score,4), "<br>")
     ) %>%
     addProviderTiles(providers$CartoDB.Positron) %>%  # providers$Esri.WorldStreetMap
     addLegend(
