@@ -156,62 +156,34 @@ add_factors_wide <- add_factors_long %>%
 
 # MAP ANALYSIS --------------------------------------------------------------------------------------------------------------------------------------------------------#
 
-plot_add_factors_map <- function(selected_factors,slider1,slider2,slider3,slider4,slider5,slider6,weight1,weight2,weight3,weight4,weight5,weight6){
-
-    filtered_factors <- add_factors_long_clean %>%
-      mutate(weight = case_when(
-        Factor == "minority" ~ as.numeric(weight1),
-        Factor == "poverty" ~ as.numeric(weight2),
-        Factor == "zeroCar" ~ as.numeric(weight3),
-        Factor == "ageUnder18" ~ as.numeric(weight4),
-        Factor == "age65P" ~ as.numeric(weight5),
-        Factor == "limitedEnglish" ~ as.numeric(weight6)
-      )) %>%
-      mutate(score = weight*SDMEAN) %>%
-      mutate(wantedThreshold = case_when(
-        Factor == "minority" ~ slider1,
-        Factor == "poverty" ~ slider2,
-        Factor == "zeroCar" ~ slider3,
-        Factor == "ageUnder18" ~ slider4,
-        Factor == "age65P" ~ slider5,
-        Factor == "limitedEnglish" ~ slider6
-      )) %>%
-      filter(Percent > wantedThreshold/100) %>%
-      filter(Factor %in% selected_factors) %>%
-      group_by(Geography) %>%
-      summarize(sum = sum(score)) %>%
-      left_join(add_factors_wide, by = c("Geography")) %>%
-      rename("score" = sum)
-    
-  pal <- colorQuantile(palette = "YlOrRd", domain =filtered_factors$score, na.color = "black", n = 5)
+get_filtered_factors <- function(selected_factors,slider1,slider2,slider3,slider4,slider5,slider6,weight1,weight2,weight3,weight4,weight5,weight6){
+  filtered_factors <- add_factors_long_clean %>%
+    mutate(weight = case_when(
+      Factor == "minority" ~ as.numeric(weight1),
+      Factor == "poverty" ~ as.numeric(weight2),
+      Factor == "zeroCar" ~ as.numeric(weight3),
+      Factor == "ageUnder18" ~ as.numeric(weight4),
+      Factor == "age65P" ~ as.numeric(weight5),
+      Factor == "limitedEnglish" ~ as.numeric(weight6)
+    )) %>%
+    mutate(score = weight*SDMEAN) %>%
+    mutate(wantedThreshold = case_when(
+      Factor == "minority" ~ slider1,
+      Factor == "poverty" ~ slider2,
+      Factor == "zeroCar" ~ slider3,
+      Factor == "ageUnder18" ~ slider4,
+      Factor == "age65P" ~ slider5,
+      Factor == "limitedEnglish" ~ slider6
+    )) %>%
+    filter(Percent > wantedThreshold/100) %>%
+    filter(Factor %in% selected_factors) %>%
+    group_by(Geography) %>%
+    summarize(sum = sum(score)) %>%
+    left_join(add_factors_wide, by = c("Geography")) %>%
+    rename("score" = sum)
   filtered_factors <- sf::st_as_sf(filtered_factors)
-  
-  leaflet(data = filtered_factors) %>%
-    addPolygons(
-              fillOpacity = 1,
-              fillColor = ~pal(filtered_factors$score),
-              color = "white",
-              weight = .8,
-              popup = paste("Population:", filtered_factors$Population, "<br>",
-                            "Total Households:", filtered_factors$TotalHouseholds, "<br>",
-                            "Population Density:", filtered_factors$PopDens, "<br>",
-                            "% Minority:", round(filtered_factors$Percent_minority,4)*100, "<br>",
-                            "% Poverty:", round(filtered_factors$Percent_poverty,4)*100, "<br>",
-                            "% Zero Car:", round(filtered_factors$Percent_zeroCar,4)*100, "<br>",
-                            "% Age Under 18:", round(filtered_factors$Percent_ageUnder18,4)*100, "<br>",
-                            "% Age Over 65:", round(filtered_factors$Percent_age65P,4)*100, "<br>",
-                            "% Limited English:", round(filtered_factors$Percent_limitedEnglish,4)*100, "<br>",
-                            "Score:", round(filtered_factors$score,4), "<br>")
-    ) %>%
-    addProviderTiles(providers$CartoDB.Positron) %>%  # providers$Esri.WorldStreetMap
-    addLegend(
-      "bottomright",
-      pal = pal,
-      values = filtered_factors$score,
-      title = "Legend",
-      opacity = 1
-    )
 }
+
 
 
 

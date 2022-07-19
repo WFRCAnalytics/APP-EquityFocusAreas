@@ -18,13 +18,14 @@ factors <- c("Minority", "Poverty", "Zero Car", "Age Under 18", "Age over 65", "
 ui <- fluidPage(
   tabsetPanel(
     tabPanel("Additional Factors Map", fluid = TRUE,
+      #titlePanel("pyData Shiny Demo"),
       sidebarLayout(
         mainPanel(
              tags$style(type = "text/css", "#map2 {height: calc(100vh - 80px) !important;}"),
              leafletOutput("map2")
         ),
         sidebarPanel(style = "position: fixed; height: 90vh; width: 30%; overflow-y: auto;",
-             checkboxInput(inputId = "Minority", label = strong("Minority"), value = FALSE),
+             checkboxInput(inputId = "Minority", label = strong("Persons of Color"), value = FALSE),
              tags$head(tags$style(HTML("label {font-weight:normal;}"))),   
                 conditionalPanel(condition = "input.Minority == true",
                                  tags$h5("Regional Mean: ", strong("24%")),
@@ -37,7 +38,7 @@ ui <- fluidPage(
                                       conditionalPanel(condition = "input.histo1 == true", plotOutput(outputId="histo1graph"))
                                  
                 ),
-             checkboxInput(inputId = "Poverty", label = strong("Poverty"), value = FALSE),
+             checkboxInput(inputId = "Poverty", label = strong("Low Income"), value = FALSE),
              tags$head(tags$style(HTML("label {font-weight:normal;}"))),   
              conditionalPanel(condition = "input.Poverty == true",
                               tags$h5("Regional Mean: ", strong("9%")),
@@ -50,7 +51,7 @@ ui <- fluidPage(
                               conditionalPanel(condition = "input.histo2 == true", plotOutput(outputId="histo2graph"))
                               
              ),
-             checkboxInput(inputId = "ZeroCar", label = strong("Zero Car"), value = FALSE),
+             checkboxInput(inputId = "ZeroCar", label = strong("Zero Car Households"), value = FALSE),
              tags$head(tags$style(HTML("label {font-weight:normal;}"))),   
              conditionalPanel(condition = "input.ZeroCar == true",
                               tags$h5("Regional Mean: ", strong("4%")),
@@ -143,20 +144,60 @@ server <- function(input, output) {
     if(input$LimitedEnglish){my_rows <- c(my_rows,"limitedEnglish")}
     return(my_rows)
   })
+  
+  zoom <- reactive({
+    ifelse(is.null(input$map2_zoom),9,input$map2_zoom)
+  })
+  center <- reactive({
+    if(is.null(input$map2_center)){
+      return(c(-111.8910, 40.7608))
+    }else{
+      return(input$map2_center)
+    }
+  })
+  filtered_factors <- reactive({
+    get_filtered_factors(selected_rows(),input$slider1,input$slider2,input$slider3,input$slider4,input$slider5,input$slider6,input$weight1,input$weight2,input$weight3,input$weight4,input$weight5,input$weight6)
+  })
+  
   output$map2 <- renderLeaflet({
-    plot_add_factors_map(selected_rows(),
-                         input$slider1,input$slider2,input$slider3,input$slider4,input$slider5,input$slider6,
-                         input$weight1,input$weight2,input$weight3,input$weight4,input$weight5,input$weight6)
-
+    pal <- colorQuantile(palette = "YlOrRd", domain =filtered_factors()$score, na.color = "black", n = 5)
+    
+    leaflet(data = filtered_factors()) %>%
+      addProviderTiles(providers$CartoDB.Positron) %>%  # providers$Esri.WorldStreetMap
+      addLegend(
+        "bottomright",
+        pal = pal,
+        values = filtered_factors()$score,
+        title = "Legend",
+        opacity = 1
+      )
   })
   observe({
-    isolate({
-      new_zoom <- 9
-      if(!is.null(input$map2_zoom)) new_zoom <- input$map2_zoom
-      leafletProxy('map2') %>%
-        setView(lng = -111.8910, lat = 40.7608, zoom = new_zoom)
-    })
-  }) #https://stackoverflow.com/questions/34985889/how-to-get-the-zoom-level-from-the-leaflet-map-in-r-shiny
+    pal <- colorQuantile(palette = "YlOrRd", domain =filtered_factors()$score, na.color = "black", n = 5)
+    
+    leafletProxy("map2") %>%
+      setView(lng = center()[1],
+              lat = center()[2],
+              zoom = zoom()) %>%
+      addPolygons(
+        data = filtered_factors(),
+        fillOpacity = 1,
+        fillColor = ~pal(filtered_factors()$score),
+        color = "white",
+        weight = .8,
+        popup = paste("Population:", filtered_factors()$Population, "<br>",
+                      "Total Households:", filtered_factors()$TotalHouseholds, "<br>",
+                      "Population Density:", filtered_factors()$PopDens, "<br>",
+                      "% Persons of Color:", round(filtered_factors()$Percent_minority,4)*100, "<br>",
+                      "% Low Income:", round(filtered_factors()$Percent_poverty,4)*100, "<br>",
+                      "% Zero Car Households:", round(filtered_factors()$Percent_zeroCar,4)*100, "<br>",
+                      "% Age Under 18:", round(filtered_factors()$Percent_ageUnder18,4)*100, "<br>",
+                      "% Age Over 65:", round(filtered_factors()$Percent_age65P,4)*100, "<br>",
+                      "% Limited English:", round(filtered_factors()$Percent_limitedEnglish,4)*100, "<br>",
+                      "Score:", round(filtered_factors()$score,4), "<br>")
+      )
+  })
+
   
   output$histo1graph <- renderPlot({createBasicHistogram(add_factors_long,"minority")})
   output$histo2graph <- renderPlot({createBasicHistogram(add_factors_long,"poverty")})
