@@ -150,7 +150,7 @@ add_factors_wide <- add_factors_long %>%
   mutate(Area_Meters = as.numeric(st_area(geometry))) %>%
   mutate(Area_Miles = Area_Meters / 2589988.11) %>%
   mutate(PopDens = round(Population / Area_Miles),5) %>%
-  filter(PopDens > 2000)
+  filter(PopDens > 500)
   #improve column headers
   
 
