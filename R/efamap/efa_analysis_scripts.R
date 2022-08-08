@@ -81,7 +81,7 @@ delete_low_pop_dens <- function(table){
     mutate(Area_Meters = as.numeric(st_area(SHAPE))) %>%
     mutate(Area_Miles = Area_Meters / 2589988.11) %>%
     mutate(PopDens = round(Population / Area_Miles),5) %>%
-    filter(PopDens > 2000)
+    filter(PopDens > 500)
 }
 
 
