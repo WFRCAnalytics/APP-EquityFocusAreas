@@ -38,8 +38,8 @@ library(tidycensus)
 library(tigris)
 library(geojsonio)
 library(geojsonlint)
-source("efa_analysis_scripts.R")
-#source("R/efamap/efa_analysis_scripts.R")
+#source("efa_analysis_scripts.R")
+source("R/efamap/efa_analysis_scripts.R")
 census_api_key("0196454888e2441971be7360589dd0399e036978")
 
 
@@ -101,7 +101,7 @@ efa2020shpb4 <- geometry_calculate(efa2020,wfrc_blockgroups)
 
 # select the columns needed for further analysis
 efa2020shp <- efa2020shpb4 %>%
-  select(OBJECTID,SHAPE,Geography,Population,Poverty,PercPovert,SD_Pov,Perc_Pov25,Perc_Pov20,Minority,PercMinori,SD_Minorit,Perc_Minorit,ZeroCar,PercZeroCa,SD_ZeroCar,Perc_ZeroCar,HighestStDev,HighestPerc25wCar,HighestPerc20wCar,HighestPerc25woCar,HighestPerc20woCar,IP,IP_Correctional,IP_Juvenile,IP_Nursing,IP_Other,NIP,NIP_College,NIP_Military,NIP_Other)
+  select(OBJECTID,SHAPE,Geography,Population,TotalHH,Poverty,PercPovert,SD_Pov,Perc_Pov25,Perc_Pov20,Minority,PercMinori,SD_Minorit,Perc_Minorit,ZeroCar,PercZeroCa,SD_ZeroCar,Perc_ZeroCar,HighestStDev,HighestPerc25wCar,HighestPerc20wCar,HighestPerc25woCar,HighestPerc20woCar,IP,IP_Correctional,IP_Juvenile,IP_Nursing,IP_Other,NIP,NIP_College,NIP_Military,NIP_Other)
 
 
 #Create EFA GeoPackage for Original Analysis -------------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -137,16 +137,17 @@ efaAnalysis <- bind_rows(list(efaPerc2020Pov25NoCarshp,efaPerc2020Pov20NoCarshp,
 
 # TODO: Would geojson be better than geopackage? Look into this.
 #st_write(efaPerc2020Pov25NoCarshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov25NoCar",append=TRUE)
-#st_write(efaPerc2020Pov20NoCarshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov20NoCar",append=TRUE)
+#st_write(efaPerc2020Pov20NoCarshp, dsn = "outputs/results/EquityFocusAreas2020v2.gpkg", layer = "EFAs2020Pov20Min40NoCar",append=TRUE)
 #st_write(efaPerc2020Pov20Carshp, dsn = "outputs/results/EFAs_2020_2.gpkg", layer = "EFAs2020Pov20Car",append=TRUE)
 #st_write(efaPerc2017Pov25NoCarshp, dsn = "outputs/results/EFAs_2017_2.gpkg", layer = "EFA2017Pov25NoCar",append=TRUE)
 #st_write(efaPerc2017Pov20NoCarshp, dsn = "outputs/results/EFAs_2017_2.gpkg", layer = "EFA2017Pov20NoCar",append=TRUE)
 
 # FINAL SELECTED EFA Zones for 2020
 efa2020FinalZones <- efaPerc2020Pov20NoCarshp %>%
-  select(Geography,Population,Poverty,PercPovert,Perc_Pov20,Minority,PercMinori,Perc_Minorit,HighestPerc20woCar,Area_Meters,Area_Miles,PopDens,SHAPE) %>%
-  rename("Perc_Minority40" = Perc_Minorit, "HighestPerc" = HighestPerc20woCar, "PercPoverty" = PercPovert, "Perc_Poverty20" = Perc_Pov20, "PercMinority" = PercMinori)
-#st_write(efa2020FinalZones, dsn = "outputs/results/EquityFocusAreas2020.gpkg", layer = "EFA2020Pov20NoCar",append=TRUE)
+  select(Geography,Population,TotalHH,Poverty,PercPovert,SD_Pov,Perc_Pov20,Minority,PercMinori,SD_Minorit,Perc_Minorit,HighestPerc20woCar,Area_Meters,Area_Miles,PopDens,SHAPE) %>%
+  rename("Perc_Minority40" = Perc_Minorit, "HighestPerc" = HighestPerc20woCar, "PercPoverty" = PercPovert, "Perc_Poverty20" = Perc_Pov20, "PercMinority" = PercMinori) %>%
+  mutate(HighestStDev = pmax(SD_Pov,SD_Minorit))
+st_write(efa2020FinalZones, dsn = "outputs/results/EquityFocusAreas2020v4.gpkg", layer = "EFA2020Pov20Min40NoCar",append=TRUE)
 
 # To save as GeoJson (ArcGIS Pro doesn't read GeoJson without paying lots of $$)
 #efa2020final_json <- geojson_json(efa2020FinalZones, lat = 'longitude',lon = 'latitude' ,geometry = "polygon")

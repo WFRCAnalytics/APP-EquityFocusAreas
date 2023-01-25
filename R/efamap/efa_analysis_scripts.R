@@ -20,6 +20,7 @@ minority_percent <- function(minority){
 
 poverty_percent <- function(income){
   income %>%
+    #this table uses ratio of income to poverty level in past 12 months
     rename("pop" = C17002_001, "superpoor_e" = C17002_002, "poor_e" = C17002_003) %>%
     mutate(Poverty = superpoor_e + poor_e) %>%
     mutate(PercPovert = round(Poverty/pop,3)) %>%
@@ -33,7 +34,7 @@ vehicle_percent <- function(vehicles){
     rename("TotalHH"=B25044_001, "OwnerZeroVehs_E"=B25044_003, "RenterZeroVehs_E" = B25044_010) %>%
     mutate(ZeroCar = OwnerZeroVehs_E + RenterZeroVehs_E) %>%
     mutate(PercZeroCa = round(ZeroCar/TotalHH,3)) %>%
-    select(NAME,GEOID,ZeroCar,PercZeroCa) %>%
+    select(NAME,TotalHH,GEOID,ZeroCar,PercZeroCa) %>%
     mutate(Perc_ZeroCar = ifelse(PercZeroCa > 0.1,1,0))
 }
 
