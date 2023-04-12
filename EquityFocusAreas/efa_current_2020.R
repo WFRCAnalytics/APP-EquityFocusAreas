@@ -104,5 +104,18 @@ efa2020FinalZones <- efaPerc2020Pov20NoCarshp %>%
   rename("Perc_Minority40" = Perc_Minorit, "HighestPerc" = HighestPerc20woCar, "PercPoverty" = PercPovert, "Perc_Poverty20" = Perc_Pov20, "PercMinority" = PercMinori) %>%
   mutate(HighestStDev = pmax(SD_Pov,SD_Minorit))
 
-#st_write(efa2020FinalZones, dsn = "results/shps/EquityFocusAreas2020_AllPopDens/EquityFocusAreas2020_AllPopDens.shp", layer = "EFA2020Pov20Min40NoCar",append=TRUE)
+efa2020FinalZones_rename = efa2020FinalZones %>%
+  rename("Pov" = Poverty,
+         "PctPov" = PercPoverty,
+         "Pct_Pov20" = Perc_Poverty20,
+         "Min" = Minority,
+         "PctMin" = PercMinority,
+         "SD_Min" = SD_Minorit,
+         "Pct_Min40" = Perc_Minority40,
+         "HighPct" = HighestPerc,
+         "HighSD" = HighestStDev,
+         "Area_Mets" = Area_Meters,
+         "Area_Mils" = Area_Miles)
+
+st_write(efa2020FinalZones_rename, dsn = "EquityFocusAreas/results/shps/EquityFocusAreas2020_AllPopDens/EquityFocusAreas2020_AllPopDens.shp", layer = "EFA2020Pov20Min40NoCar",append=TRUE)
 
