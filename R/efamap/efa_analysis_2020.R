@@ -117,13 +117,13 @@ efaSD2020shp <- efa2020shp %>% filter(HighestStDev > 0) %>%
 #Create EFA GeoPackage for Secondary Analysis-------------------------------------------------------------------------------------------------------------------------------------------------------------#
 #' create more spatial options where we adjust slightly the percentage calculation by using a poverty threshold of 20% instead of 25%
 efaPerc2020Pov25NoCarshp <- efa2020shp %>% filter(HighestPerc25woCar > 0) %>% 
-  delete_low_pop_dens() %>% mutate(group = "2020 Pov-25% Min-40%",color = "blue") 
+  delete_low_pop_dens(500) %>% mutate(group = "2020 Pov-25% Min-40%",color = "blue") 
 
 efaPerc2020Pov20NoCarshp<- efa2020shp %>% filter(HighestPerc20woCar > 0) %>% 
-  delete_low_pop_dens() %>% mutate(group = "2020 Pov-20% Min-40%",color = "red")
+  delete_low_pop_dens(0) %>% mutate(group = "2020 Pov-20% Min-40%",color = "red")
 
 efaPerc2020Pov20Carshp <- efa2020shp %>% filter(HighestPerc20wCar > 0) %>%
-  delete_low_pop_dens() %>% mutate(group = "2020 Pov-20% Min 40% Veh-10%",color = "yellow")
+  delete_low_pop_dens(500) %>% mutate(group = "2020 Pov-20% Min 40% Veh-10%",color = "yellow")
 
 efaPerc2017shp <- efashp2017 %>%  mutate(Perc_Pov25 = ifelse(PercPovert > 0.25,1,0), Perc_Pov20 = ifelse(PercPovert > 0.2,1,0)) %>%
   mutate(SD_Pov = as.numeric(SD_Pov),SD_Minorit = as.numeric(SD_Minorit),SD_ZeroCar = as.numeric(SD_ZeroCar),HighestStD = as.numeric(HighestStD)) %>%
@@ -147,7 +147,7 @@ efa2020FinalZones <- efaPerc2020Pov20NoCarshp %>%
   select(Geography,Population,TotalHH,Poverty,PercPovert,SD_Pov,Perc_Pov20,Minority,PercMinori,SD_Minorit,Perc_Minorit,HighestPerc20woCar,Area_Meters,Area_Miles,PopDens,SHAPE) %>%
   rename("Perc_Minority40" = Perc_Minorit, "HighestPerc" = HighestPerc20woCar, "PercPoverty" = PercPovert, "Perc_Poverty20" = Perc_Pov20, "PercMinority" = PercMinori) %>%
   mutate(HighestStDev = pmax(SD_Pov,SD_Minorit))
-st_write(efa2020FinalZones, dsn = "outputs/results/EquityFocusAreas2020v4.gpkg", layer = "EFA2020Pov20Min40NoCar",append=TRUE)
+st_write(efa2020FinalZones, dsn = "outputs/results/shps/EquityFocusAreas2020_AllPopDens/EquityFocusAreas2020_AllPopDens.shp", layer = "EFA2020Pov20Min40NoCar",append=TRUE)
 
 # To save as GeoJson (ArcGIS Pro doesn't read GeoJson without paying lots of $$)
 #efa2020final_json <- geojson_json(efa2020FinalZones, lat = 'longitude',lon = 'latitude' ,geometry = "polygon")

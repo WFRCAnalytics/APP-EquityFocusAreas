@@ -77,12 +77,12 @@ geometry_calculate <- function(efaInitial,wfrc_blockgroups){
     mutate(OBJECTID = row_number(), SHAPE=geometry)
 }
 
-delete_low_pop_dens <- function(table){
+delete_low_pop_dens <- function(table, density){
   table %>% 
     mutate(Area_Meters = as.numeric(st_area(SHAPE))) %>%
     mutate(Area_Miles = Area_Meters / 2589988.11) %>%
     mutate(PopDens = round(Population / Area_Miles),5) %>%
-    filter(PopDens > 500)
+    filter(PopDens > density)
 }
 
 
