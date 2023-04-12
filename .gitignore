@@ -1,3 +1,4 @@
-gdbs/*
-outputs/*
+EquityFocusAreas/gdbs/*
+EquityFocusAreas/results/*
+GoogleStreetView/results/*
 .Rproj.user

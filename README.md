@@ -1,5 +1,5 @@
-# basic-mapping
-A repository for basic mapping scripts. 
+# EFA-Mapping-Analyses
+A repository with the primary purpose of determining Equity Focus Areas, but also for other basic mapping things.
 
 So far, the basic mapping scripts relate to the following projects
   - Equity Focus Areas

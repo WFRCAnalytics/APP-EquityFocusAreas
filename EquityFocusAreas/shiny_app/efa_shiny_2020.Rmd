@@ -1,0 +1,27 @@
+---
+title: "efa_analysis"
+output: html_document
+date: '2022-06-21'
+---
+
+```{r, include = FALSE}
+library(tidyverse)
+library(sf)
+library(knitr)
+library(kableExtra)
+library(magrittr)
+library(leaflet)
+library(shiny)
+library(shinydashboard)
+library(rsconnect)
+library(tidycensus)
+library(tigris)
+source("EquityFocusAreas/shiny_app/app/app_efa_analysis_2020.R")
+source("EquityFocusAreas/shiny_app/app/app_efa_add_factors_2020.R")
+```
+
+```{r}
+runApp("D:/GitHub/EFA-Mapping-Analyses/EquityFocusAreas/shiny_app/app")
+rsconnect::deployApp("app")
+```
+
